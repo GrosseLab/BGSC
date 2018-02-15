@@ -1,0 +1,23 @@
+Package: BGSC
+Title: Two-step Bayesian gene selection criterion (BGSC) approach
+Version: 0.0.0.9000
+Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
+Description: What the package does (one paragraph).
+Depends:
+    R (>= 3.1.1),
+    data.table (>= 1.9.4),
+    limma (>= 3.30.0)
+Imports:
+    Biostrings,
+    IRanges,
+    grDevices
+Suggests:
+    knitr (>= 1.6),
+    rmarkdown (>= 0.3.3),
+    devtools (>= 1.6.1),
+    testthat (>= 0.9.1)    
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+VignetteBuilder: knitr
+RoxygenNote: 6.0.1
