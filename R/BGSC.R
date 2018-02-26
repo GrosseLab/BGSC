@@ -1,10 +1,11 @@
 #' @title normalize ExpData
 #' @description .AAA
 #' @author Claus Weinholdt
-#' @usage normalizeExoData()
+#' @usage normalizeExoData(pval)
 #' @param pval is the dectecion p value ot the Illumina BeatChip
 #' @return a \code{limma object} 
 #' @export
+
 normalizeExpData <- function(pval=0.05){
   data(ExpData, envir = environment()) 
   pe2 <- propexpr(ExpData);
@@ -132,7 +133,7 @@ minIndex<-function(x){
 #' @title calucate BIC and AIC
 #' @description calucate BIC and AIC
 #' @author Claus Weinholdt
-#' @usage logLikelihoodOfnormData(normData$E)
+#' @usage lInformationCriterion(logL,npar,k , IC='BIC')
 #' @param logL is log liklelihood
 #' @param npar represents the number of parameters in the fitted model
 #' @param k is number of ovservations 
@@ -207,7 +208,82 @@ get.Posterior <- function(B, Pis= c(0.7,0.1,0.1,0.1) ) {
   return(P_m_x)
 }
 
+#' @title get Results of Posterior data
+#' @description get the Genes assigned to the best class
+#' @author Claus Weinholdt
+#' @usage get.gene.classes(data, indexing="max",filter=0.75, DoPlot=FALSE)
+#' @param data is Posterior matrix
+#' @param indexing is the indexing method "max" or "min"
+#' @param filter for Posterior 
+#' @param DoPlot if TRUE plot histogram of Posterior
+#' @return a \code{list} of assigned genes
+#' @export
+get.gene.classes <- function(data, indexing="max", filter=0.75, DoPlot=FALSE){
+  
+  Ind <- switch(indexing, 
+                "max" =  apply(data,MARGIN=1,FUN=maxIndex),
+                "min" =  apply(data,MARGIN=1,FUN=minIndex)
+                )
+  for(i in min(Ind):max(Ind) ) Ind[Ind==i]  <- colnames(data)[i]
+  
+  res <- lapply(colnames(data),function(x) { data[names(Ind)[Ind==x],]  })
+  names(res) <- colnames(data)
+
+  resFilter <- lapply(names(res) , function(x) res[[x]][ res[[x]][,x]>=filter ,  ])  
+  names(resFilter) <- colnames(data)
+  
+  if(DoPlot){
+    par(mfrow=c(2,2))
+    for(i in names(res)) {hist(res[[i]][,i],50,main = i,xlab = "") ; abline(v=filter,col=2)}
+    par(mfrow=c(1,1))
+  }
+  print(rbind("ALL"=sapply(res, nrow),"Filter"=sapply(resFilter, nrow) ))
+  
+  return(list("res"=res,"resFilter"=resFilter))
+}
+
+
+#' @title make data for Enrichment analysis
+#' @description make data for Enrichment analysis
+#' @author Claus Weinholdt
+#' @param data is Posterior matrix
+#' @param LsetForFC is the Lset of the data. needed for the logFC calculation 
+#' @param normData is the normData object 
+#' @return a \code{list} with logFC and Symbols
+#' @export
+make.Enrichment.data <- function(data,LsetForFC,normData){
+
+  data(Illumina_to_REFSEQ_MRNA, envir = environment()) 
+  
+  tmp <- normData$genes
+  tmp <- tmp[rownames(data),]
+
+  if(is.null(LsetForFC[['s1']])){
+    logFC <- NA
+  }else if( length(LsetForFC[['s0']]) == 1 ){
+    logFC <- rowMeans(normData$E[rownames(data),LsetForFC[['s1']] ]) - (normData$E[rownames(data),LsetForFC[['s0']] ])
+  }else if( length(LsetForFC[['s1']]) == 1 ){
+    logFC <- (normData$E[rownames(data),LsetForFC[['s1']] ]) - rowMeans(normData$E[rownames(data),LsetForFC[['s0']] ])
+  }else{
+    logFC <- rowMeans(normData$E[rownames(data),LsetForFC[['s1']] ]) - rowMeans(normData$E[rownames(data),LsetForFC[['s0']] ])
+  }
+  tmp$logFC <- logFC
+  tmp <- tmp[,c('SYMBOL','logFC')]
+  
+  tmp2 <- data.frame("REFSEQ_MRNA"=Illumina_to_REFSEQ_MRNA[rownames(tmp),]$REFSEQ_MRNA , "logFC" = tmp$logFC)
+  rownames(tmp2) <- rownames(tmp)
+  
+  return( list( "SYMlogFC"=tmp,"SYM"= unique(as.character(tmp$SYMBOL)),
+                "REFSEQlogFC"=tmp2,"REFSEQ"= unique(as.character(tmp2$REFSEQ_MRNA))))
+}
+
+
 main <- function(){
+  
+  
+  v2_5 <- RBPs::f.input2(rownames(y$E),unique(as.character(GEOD.adf$illumina_humanht_12_v4)),name = c('y$E','GEOD.adf') )   
+  
+  
   
   # normalize Data
   normData <- normalizeExpData()
@@ -227,65 +303,33 @@ main <- function(){
   normDataPosterior <- get.Posterior( normDataBIC ,Pis = c(0.7,0.1,0.1,0.1))
   POSTmaxInd <- apply(normDataPosterior,MARGIN=1,FUN=maxIndex)
   print(table(POSTmaxInd))
-    
-  ###
-  t<-normDataPosterior[POSTmaxInd==1,] ;normDataPosterior_a<-t[order(t[,1],decreasing=T),] 
-  t<-normDataPosterior[POSTmaxInd==2,] ;normDataPosterior_b<-t[order(t[,2],decreasing=T),]
-  t<-normDataPosterior[POSTmaxInd==3,] ;normDataPosterior_c<-t[order(t[,3],decreasing=T),]
-  t<-normDataPosterior[POSTmaxInd==4,] ;normDataPosterior_d<-t[order(t[,4],decreasing=T),]
-  normDataPosterior_a.75<-normDataPosterior_a[normDataPosterior_a[,1]>0.75,]
-  normDataPosterior_b.75<-normDataPosterior_b[normDataPosterior_b[,2]>0.75,]
-  normDataPosterior_c.75<-normDataPosterior_c[normDataPosterior_c[,3]>0.75,]
-  normDataPosterior_d.75<-normDataPosterior_d[normDataPosterior_d[,4]>0.75,]
-  rbind('ALL'=c(
-    'A'=dim(normDataPosterior_a)[1] ,
-    'B'=dim(normDataPosterior_b)[1] ,
-    'C'=dim(normDataPosterior_c)[1],
-    'D'=dim(normDataPosterior_d)[1]) ,
-    'x75'=c(
-      dim(normDataPosterior_a.75)[1] ,
-      dim(normDataPosterior_b.75)[1] ,
-      dim(normDataPosterior_c.75)[1] ,
-      dim(normDataPosterior_d.75)[1] )
-  )
   
-  
-  ###
-  PPP <- list("P91"=c(0.91 ,0.03 ,0.03  ,0.03),
+  PostClass <- get.gene.classes(data=normDataPosterior,indexing="max",filter=0.75, DoPlot=TRUE)
+  ### 
+  PIS <- list("P91"=c(0.91 ,0.03 ,0.03  ,0.03),
               "P85"=c(0.85 ,0.05 ,0.05  ,0.05),
               "P70"=c(0.7  ,0.1  ,0.1   ,0.1),
               "P55"=c(0.55 ,0.15 ,0.15  ,0.15),
               "P40"=c(0.4  ,0.2  ,0.2   ,0.2),
               "P25"=c(0.25 ,0.25 ,0.25  ,0.25)
               )
-  PPPtab <- lapply(PPP  , function(Pis){  tmp <- get.Posterior( normDataBIC ,Pis)
-         tmpmaxInd <- apply(tmp,MARGIN=1,FUN=maxIndex)
-         print(table(tmpmaxInd)) 
-         
-         t<-tmp[tmpmaxInd==1,] ;tmp_a<-t[order(t[,1],decreasing=T),] 
-         t<-tmp[tmpmaxInd==2,] ;tmp_b<-t[order(t[,2],decreasing=T),]
-         t<-tmp[tmpmaxInd==3,] ;tmp_c<-t[order(t[,3],decreasing=T),]
-         t<-tmp[tmpmaxInd==4,] ;tmp_d<-t[order(t[,4],decreasing=T),]
-         tmp_a.75<-tmp_a[tmp_a[,1]>0.75,]
-         tmp_b.75<-tmp_b[tmp_b[,2]>0.75,]
-         tmp_c.75<-tmp_c[tmp_c[,3]>0.75,]
-         tmp_d.75<-tmp_d[tmp_d[,4]>0.75,]
-         
-         rbind('ALL'=c(
-           'A'=dim(tmp_a)[1] ,
-           'B'=dim(tmp_b)[1] ,
-           'C'=dim(tmp_c)[1],
-           'D'=dim(tmp_d)[1]) ,
-           'x75'=c(
-             dim(tmp_a.75)[1] ,
-             dim(tmp_b.75)[1] ,
-             dim(tmp_c.75)[1] ,
-             dim(tmp_d.75)[1] )
-         )
-         # rownames(tmp_c.75)
-         
-  })
-  # print( PPPtab)
-  # RBPs::f.input4(PPPtab$P85,PPPtab$P70,PPPtab$P55,PPPtab$P25)
+  PostClassPis  <- lapply(PIS, function(Pis){  
+                        tmp <- get.Posterior( normDataBIC ,Pis) 
+                        print(Pis)
+                        get.gene.classes(data=tmp,indexing="max",filter=0.75, DoPlot=TRUE) 
+                        })
+  ### 
+  enrich <- list()
+  for(i in names(PostClass[['resFilter']])){
+   enrich[[i]] <-  make.Enrichment.data(data = PostClass[['resFilter']][[i]] , LsetForFC = Lsets[[i]] , normData = normData )
+   
+   write.csv2(enrich[[i]]$REFSEQlogFC, paste0('Filtering_logFC_',i,'.csv'))
+   write.table(enrich[[i]]$SYM, paste0('Filtering_Symbole_',i,'.txt'),quote = FALSE,row.names = FALSE,col.names = FALSE)
+   write.table(enrich[[i]]$REFSEQ, paste0('Filtering_REFSEQ_MRNA_',i,'.txt'),quote = FALSE,row.names = FALSE,col.names = FALSE)
+  }
+  
+    
+  # /home/adsvy/miniconda2/bin/perl /home/adsvy/GitHubRepo/HumanData/perl/chartReport_modify2.pl /home/adsvy/Bache/Versuche_BS_CA3_RM/MDA_MCF7_K/Limma/Pairwise/Compare_BS10__vs__C3/MDA___C3___0_6___N_H/DAVID_6_7/MDA___C3___0_6___N_H_ResSig_overlapMDA_C3_H_N__0_vs_6__REFSEQ_MRNA_DAVID_6_7_input.txt 'REFSEQ_MRNA' /home/adsvy/Bache/Versuche_BS_CA3_RM/MDA_MCF7_K/Limma/Pairwise/Compare_BS10__vs__C3/MDA___C3___0_6___N_H/DAVID_6_7/MDA___C3___0_6___N_H_ResSig_overlapMDA_C3_H_N__0_vs_6__REFSEQ_MRNA_DAVID_6_7_chartReport.txt
+  
   
 }

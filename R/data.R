@@ -27,3 +27,18 @@
 #' }
 #' 
 "RawQPCR"
+
+#' Expression data set of all qPCRs
+#' GEOD.adf <-  fread('Illumina HumanHT-12_V4.0_A-GEOD-13475.adf.txt')
+#' setnames(GEOD.adf,'Reporter Database Entry [genbank]','genbank')
+#' setnames(GEOD.adf,'Reporter Name','illumina_humanht_12_v4')
+#' REFSEQ_MRNA <- sapply(GEOD.adf[['genbank']], function(x) stringr::str_split(x,'\\.') )
+#' GEOD.adf$REFSEQ_MRNA <- sapply(REFSEQ_MRNA, "[[", 1 ) 
+#' setkey(GEOD.adf,'illumina_humanht_12_v4')
+#' Illumina_to_REFSEQ_MRNA <- GEOD.adf
+#' devtools::use_data(Illumina_to_REFSEQ_MRNA)
+#' A dataset containing the
+#' 
+#' @format A data frame with 47323 rows and 5 variables:
+#'
+"Illumina_to_REFSEQ_MRNA" 

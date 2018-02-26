@@ -4,7 +4,7 @@
 \alias{InformationCriterion}
 \title{calucate BIC and AIC}
 \usage{
-logLikelihoodOfnormData(normData$E)
+lInformationCriterion(logL,npar,k , IC='BIC')
 }
 \arguments{
 \item{logL}{is log liklelihood}
