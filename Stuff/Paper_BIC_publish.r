@@ -226,6 +226,13 @@ get.ML.logLs.var.NEW<-function(x){  # with var-estimator
   ALL.SDs<<-c()
   require(reshape)
   logL<-apply(x,1,logLs,sub,N)
+  
+  restructur<-function(A){
+    A<-t(A)
+    colnames(A)<-c("a","b","c","d")
+    return(A)
+  }
+  
   logL<-restructur(logL)  
   
   rownames(ALL.MUs) <-rownames(x)
