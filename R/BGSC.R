@@ -5,7 +5,6 @@
 #' @param pval is the dectecion p value ot the Illumina BeatChip
 #' @return a \code{limma object} 
 #' @export
-
 normalizeExpData <- function(pval=0.05){
   data(ExpData, envir = environment()) 
   pe2 <- propexpr(ExpData);
@@ -241,7 +240,6 @@ get.gene.classes <- function(data, indexing="max", filter=0.75, DoPlot=FALSE){
   
   return(list("res"=res,"resFilter"=resFilter))
 }
-
 
 #' @title make data for Enrichment analysis
 #' @description make data for Enrichment analysis
