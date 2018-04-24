@@ -4,10 +4,10 @@
 \alias{logLikelihoodOfnormData}
 \title{calucate the the log likelihood for each class for each gene}
 \usage{
-logLikelihoodOfnormData(normData$E)
+logLikelihoodOfnormData(x)
 }
 \arguments{
-\item{x}{is maxtrix with normalized expression}
+\item{x}{is maxtrix with normalized expression e.g. normData$E}
 }
 \value{
 a \code{matrix} with log likelihoods

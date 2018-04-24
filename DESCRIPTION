@@ -10,7 +10,11 @@ Depends:
 Imports:
     Biostrings,
     IRanges,
-    grDevices
+    grDevices,
+    org.Hs.eg.db,
+    stringr,
+    gplots,
+    VennDiagram
 Suggests: 
     knitr (>= 1.6),
     rmarkdown (>= 0.3.3),
