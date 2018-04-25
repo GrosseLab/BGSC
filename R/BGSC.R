@@ -430,6 +430,125 @@ get.log2Mean.and.log2FC <- function(normData) {
 }
 
 # ----------------------------------------------------------------------
+#' @title Density plot for NV fit 
+#' @description Density plot for NV fit 
+#' @author Claus Weinholdt
+#' @usage Density.NV.fit.plot(id, normData, useGroup = NA, DOplot = FALSE)
+#' @param id is a Illuminan id
+#' @param normData is the normData data object
+#' @param useGroup if set to a group (eg. "a","b","c" or "d") the row is colored
+#' @param DOplot if TRUE plot is printed
+#' @return a \code{list} with mean , std.err , log2FC and std.err of log2FC 
+#' @import ggplot2 gridExtra grid
+#' @export
+Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE){
+  Lset <- get.Lset()
+  indicatorTMP <- lapply(Lset,function(x){
+    vec <- rep(0,6);names(vec) <- c(1:6)
+    if (!is.null(x$s1)) { vec[x$s1] <- 1 }
+    return(vec)
+  })
+  
+  IDs.dt <- data.table::data.table(normData$genes,keep.rownames = T,key = 'rn')
+  
+  pg.M <- ALL.MUs[id,]; names(pg.M) <- colnames(ALL.MUs)
+  pg.s <- sqrt(ALL.VARs[id,]); names(pg.s) <- colnames(ALL.VARs)
+  
+  logE = normData$E[id,]
+  tmp = data.frame(logE=rep(logE,4),
+                   density = rep( 0, length(rep(logE,4))),
+                   group    = c( rep('a',6),rep('b',6),rep('c',6),rep('d',6) ),
+                   # indicator = factor(c( rep(0,6) , c(0,1,0,1,0,1), c(0,1,0,0,0,1) ,c(0,1,0,0,0,0) ))
+                   indicator = factor( c(indicatorTMP$a , indicatorTMP$b , indicatorTMP$c ,indicatorTMP$d ))
+  )
+  
+  x <- seq(4, 20, length=1000)
+  dM <- round(max(
+    max(dnorm(x,mean =  pg.M['a0'], sd = pg.s['a'])),
+    max(dnorm(x,mean =  pg.M['b1'], sd = pg.s['b'])),
+    max(dnorm(x,mean =  pg.M['c1'], sd = pg.s['c'])),
+    max(dnorm(x,mean =  pg.M['d1'], sd = pg.s['d'])) )+0.5) 
+  
+  col2= RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
+  
+  .thememap <- function(base_size = 12, legend_key_size = 0.4, base_family = "", col = "grey70") {
+    ggplot2::theme_gray(base_size = base_size, base_family = base_family) %+replace% 
+      ggplot2::theme(title = ggplot2::element_text(face="bold", colour=1,angle=0           ,vjust= 0.0,           size=base_size),
+                     axis.title.x = ggplot2::element_text(face="bold", colour=1, angle=0   ,vjust= 0.0,           size=base_size),
+                     # axis.text.x  = ggplot2::element_text(face="bold", colour=1, angle = -30 , vjust = 1, hjust = 0, size=base_size),
+                     axis.text.x  = ggplot2::element_text(face="bold", colour=1,  size=base_size),
+                     strip.text.x = ggplot2::element_text(face="bold", colour=1, angle=0    ,vjust= 0.5,           size=base_size),
+                     axis.title.y = ggplot2::element_text(face="bold", colour=1, angle=90   ,vjust= 1.5, hjust=.5, size=base_size),
+                     axis.text.y  = ggplot2::element_text(face="bold", colour=1,                                  size=base_size),
+                     legend.text  = ggplot2::element_text(face="bold" ,colour=1, angle=0  ,vjust= 0.0,             size=base_size),
+                     legend.title = ggplot2::element_text(face="bold" ,colour=1, angle=0  ,vjust= 0.2,             size=base_size),
+                     
+                     
+                     axis.ticks =  ggplot2::element_line(colour = "grey70", size = 0.5),
+                     panel.grid.major =  ggplot2::element_line(colour = col, size = 0.2),
+                     panel.grid.minor =  ggplot2::element_blank(),
+                     panel.background = ggplot2::element_rect(fill="white",size = 0.2,),
+                     # #panel.grid.minor.y = element_line(size=3),
+                     # panel.grid.major = ggplot2::element_line(colour = "white"),
+                     
+                     # Force the plot into a square aspect ratio
+                     # aspect.ratio = 1,
+                     # aspect.ratio = 9 / 16,
+                     
+                     legend.key.size  = ggplot2::unit(legend_key_size, "cm"),
+                     plot.title = ggplot2::element_text(hjust = 0.5 , vjust= 1)          
+      )
+  }
+  
+  ymax <- 0
+  if( max(logE,na.rm = T) > 0 )   ymax = max(logE,na.rm = T) else ymax = 1  
+  ymin <- -0
+  if( min(logE,na.rm = T) > 0)   ymin = min(logE,na.rm = T) else ymin = 0  
+  Lims <- c( floor(ymin) - 2  , ceiling(ymax) + 2 )
+  
+  g2 = ggplot(tmp, aes(x=logE,y=density,colour=indicator)) +
+    scale_y_continuous(limits = c(-0.5, dM),breaks = seq(0,dM,1)) +
+    # scale_x_continuous(limits = c(4.5, 15),breaks = seq(4.5,15,1)) +
+    scale_x_continuous(limits = Lims ,breaks = seq(Lims[1],Lims[2],1)) +
+    geom_point(shape = 20,size = 0)  + 
+    facet_wrap(~ group,nrow = 4)  +
+    scale_color_manual(values = col2 , name = " Indicator variable", labels = list("g = 0", "g = 1" )) +
+    labs(title=paste0(id,' -- ',IDs.dt[id,][['SYMBOL']]),y = "Density", x = "Logarithmic expression levels") +
+    .thememap(14,0.6) +
+    theme(legend.background = element_rect(fill="grey90", size=.5, linetype="dotted"))+
+    theme(legend.position="bottom") 
+  
+  if(!is.na(useGroup)){
+    bestSet <- subset(tmp, group == useGroup)
+    g2 <- g2 + geom_rect(data=bestSet, aes(xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf), colour = NA , fill = "yellow", ,alpha=.01)
+  }
+  
+  g3 <- g2 + 
+    with(tmp[tmp$group == "a",],stat_function(data = tmp[tmp$group == "a" & tmp$indicator == 0,],fun = dnorm,args = list(mean =  pg.M['a0'], sd = pg.s['a']), size = 1.2) ) +
+    with(tmp[tmp$group == "b",],stat_function(data = tmp[tmp$group == "b" & tmp$indicator == 0,],fun = dnorm,args = list(mean =  pg.M['b0'], sd = pg.s['b']), size = 1.2) ) +
+    with(tmp[tmp$group == "b",],stat_function(data = tmp[tmp$group == "b" & tmp$indicator == 1,],fun = dnorm,args = list(mean =  pg.M['b1'], sd = pg.s['b']), size = 1.2) ) +
+    with(tmp[tmp$group == "c",],stat_function(data = tmp[tmp$group == "c" & tmp$indicator == 0,],fun = dnorm,args = list(mean =  pg.M['c0'], sd = pg.s['c']), size = 1.2) ) +
+    with(tmp[tmp$group == "c",],stat_function(data = tmp[tmp$group == "c" & tmp$indicator == 1,],fun = dnorm,args = list(mean =  pg.M['c1'], sd = pg.s['c']), size = 1.2) ) +
+    with(tmp[tmp$group == "d",],stat_function(data = tmp[tmp$group == "d" & tmp$indicator == 0,],fun = dnorm,args = list(mean =  pg.M['d0'], sd = pg.s['d']), size = 1.2) ) +
+    with(tmp[tmp$group == "d",],stat_function(data = tmp[tmp$group == "d" & tmp$indicator == 1,],fun = dnorm,args = list(mean =  pg.M['d1'], sd = pg.s['d']), size = 1.2) )
+  
+  g4 <- g3 + 
+    geom_point(data = tmp, aes(x = logE,y = density),shape = 20,size = 3.5) +
+    geom_point(data = tmp, aes(x = logE,y = density),shape = 21,size = 3,colour = "black")
+  g4
+  
+  if (DOplot) { print(g4) }
+  
+  
+  
+  # g4 + annotate("rect", xmin=Lims[1], xmax=Lims[2], ymin=0, ymax=Inf, alpha=0.2, fill="red") 
+  
+  return(g4)
+}
+
+
+
+# ----------------------------------------------------------------------
 #' @title make data for enrichment analysis
 #' @description make data for enrichment analysis
 #' @author Claus Weinholdt

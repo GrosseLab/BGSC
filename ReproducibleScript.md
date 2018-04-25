@@ -34,8 +34,6 @@ Loading CXXX data
 data(ExpData)
 ```
 
-    Loading required package: ggplot2
-
 ### normalize Data
 
 ``` r
@@ -55,7 +53,9 @@ rownames(ALL.VARs) <- rownames(normData$E)
 colnames(ALL.VARs) <- c('a','b','c','d')
 ```
 
-![](ReproducibleScript_files/figure-markdown_github/TDOD-1.png)
+#### Density plots with fitted normal distribution
+
+![](ReproducibleScript_files/figure-markdown_github/Density-1.png)
 
 ### calulate BIC from logLik
 

@@ -132,7 +132,8 @@ main <- function(){
     rns <- levels(PlotDataFC$Gene)[c(2,5,6,1,3,4)] ; PlotDataFC$Gene <- factor(PlotDataFC$Gene, levels = rns)
     rns <- levels(PlotDataFC$pid)[c(2,5,6,1,3,4)]  ; PlotDataFC$pid <- factor(PlotDataFC$pid, levels = rns)
     
-    cols<-c(RColorBrewer::brewer.pal(9,"RdGy")[8],RColorBrewer::brewer.pal(9,"Reds")[6])
+    # cols<-c(RColorBrewer::brewer.pal(9,"RdGy")[8],RColorBrewer::brewer.pal(9,"Reds")[6])
+    cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(2,10)]
     limits <- aes(ymax = PlotDataFC$FC + PlotDataFC$stderr , ymin=PlotDataFC$FC - PlotDataFC$stderr)
     dodge <- position_dodge(width=0.9)
     
@@ -153,7 +154,9 @@ main <- function(){
     rns <- levels(PlotDataEXP$Gene)[c(2,5,6,1,3,4)] ; PlotDataEXP$Gene <- factor(PlotDataEXP$Gene, levels = rns)
     rns <- levels(PlotDataEXP$pid)[c(2,5,6,1,3,4)]  ; PlotDataEXP$pid <- factor(PlotDataEXP$pid, levels = rns)
     
-    cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(2,10)]
+    # cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(2,10)]
+    cols <-  RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
+    
     limits <- aes(ymax = PlotDataEXP$Mean + PlotDataEXP$stderr , ymin=PlotDataEXP$Mean - PlotDataEXP$stderr)
     dodge <- position_dodge(width=0.9)
     
@@ -234,54 +237,20 @@ main <- function(){
       IDs <- do.call(c,qgenesIDs)
       
       i <- 6
+      id <- "ILMN_1730999"
       
-      pg.M <- ALL.MUs[IDs[i],]; names(pg.M) <- colnames(ALL.MUs)
-      pg.s <- sqrt(ALL.VARs[IDs[i],]); names(pg.s) <- colnames(ALL.VARs)
       
-      logE = normData$E[IDs[i],]
-      tmp = data.frame(logE=rep(logE,4),
-                       density = rep( 0, length(rep(logE,4))),
-                       group    =c(rep('a',6),rep('b',6),rep('c',6),rep('d',6)),
-                       indicator= factor(c( rep(0,6) , c(0,1,0,1,0,1), c(0,1,0,0,0,1) ,c(0,1,0,0,0,0) ))
-      )
+      tmpDensity <- lapply(qgenesIDs, function(id) Density.NV.fit.plot(id = id,normData,DOplot = TRUE) )
       
-      x <- seq(4, 20, length=1000)
-      dM <- round(max(
-        max(dnorm(x,mean =  pg.M['a0'], sd = pg.s['a'])),
-        max(dnorm(x,mean =  pg.M['b1'], sd = pg.s['b'])),
-        max(dnorm(x,mean =  pg.M['c1'], sd = pg.s['c'])),
-        max(dnorm(x,mean =  pg.M['d1'], sd = pg.s['d'])) )+0.5) 
+      aaa <- Density.NV.fit.plot(id = 'ILMN_1687840',normData,useGroup = "a",DOplot = TRUE)
+      bbb <- Density.NV.fit.plot(id = 'ILMN_1684585',normData,useGroup = "b",DOplot = TRUE)
+      ccc <- Density.NV.fit.plot(id = 'ILMN_1730999',normData,useGroup = "c",DOplot = TRUE)
+      ddd <- Density.NV.fit.plot(id = 'ILMN_2320964',normData,useGroup = "d",DOplot = TRUE)
       
-      col2= RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
-      g2 = ggplot(tmp, aes(x=logE,y=density,colour=indicator))+
-        scale_y_continuous(limits = c(0, dM),breaks = seq(0,dM,1))+
-        # scale_x_continuous(limits = c(4.5, 15),breaks = seq(4.5,15,1)) +
-        scale_x_continuous(limits = c(4, 10),breaks = seq(4,10,1)) +
-        geom_point(shape=20,size =0)  + 
-        facet_wrap(~ group,nrow = 4)  +
-        scale_color_manual(values =col2,name=" Indicator variable",labels = list("g = 0","g = 1" )) +
-        labs(title=paste0(IDs[i],' -- ',names(IDs)[i]),y = "Density", x = "Logarithmic expression levels")
+      grid.arrange(aaa + theme(legend.position="none")  , bbb + theme(legend.position="none") , ccc + theme(legend.position="none") , ddd + theme(legend.position="none") ,ncol=2,nrow=2)
       
-      g3 <- g2 + 
-        with(tmp[tmp$group=="a",],stat_function(data=tmp[tmp$group=="a" & tmp$indicator ==0,],fun=dnorm,args=list(mean =  pg.M['a0'], sd = pg.s['a']), size=1.2) ) +
-        with(tmp[tmp$group=="b",],stat_function(data=tmp[tmp$group=="b" & tmp$indicator ==0,],fun=dnorm,args=list(mean =  pg.M['b0'], sd = pg.s['b']), size=1.2) ) +
-        with(tmp[tmp$group=="b",],stat_function(data=tmp[tmp$group=="b" & tmp$indicator ==1,],fun=dnorm,args=list(mean =  pg.M['b1'], sd = pg.s['b']), size=1.2) ) +
-        with(tmp[tmp$group=="c",],stat_function(data=tmp[tmp$group=="c" & tmp$indicator ==0,],fun=dnorm,args=list(mean =  pg.M['c0'], sd = pg.s['c']), size=1.2) ) +
-        with(tmp[tmp$group=="c",],stat_function(data=tmp[tmp$group=="c" & tmp$indicator ==1,],fun=dnorm,args=list(mean =  pg.M['c1'], sd = pg.s['c']), size=1.2) ) +
-        with(tmp[tmp$group=="d",],stat_function(data=tmp[tmp$group=="d" & tmp$indicator ==0,],fun=dnorm,args=list(mean =  pg.M['d0'], sd = pg.s['d']), size=1.2) ) +
-        with(tmp[tmp$group=="d",],stat_function(data=tmp[tmp$group=="d" & tmp$indicator ==1,],fun=dnorm,args=list(mean =  pg.M['d1'], sd = pg.s['d']), size=1.2) )
+      head(PostClass$resFilter$d,20)
       
-      g4 <- g3 +
-        # .thememap(14,0.6) +
-        theme_bw() +
-        theme(legend.background = element_rect(fill="grey90", size=.5, linetype="dotted"))+theme(legend.position="bottom") +
-        theme( plot.title = ggplot2::element_text(hjust = 0.5 , vjust = 1))
-      
-      g5 = g4 + geom_point(data=tmp, aes(x=logE,y=density),shape=20,size =3.5) +
-        geom_point(data=tmp, aes(x=logE,y=density),shape=21,size =3,colour="black")
-      
-      print(g5)
-  
   ### TEST   ----------------------------------------------------------------------
       
 

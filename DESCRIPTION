@@ -16,7 +16,10 @@ Imports:
     gplots,
     VennDiagram,
     plotrix,
-    purrr
+    purrr,
+    ggplot2,
+    gridExtra,
+    grid
 Suggests: 
     knitr (>= 1.6),
     rmarkdown (>= 0.3.3),
