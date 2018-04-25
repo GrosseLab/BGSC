@@ -38,9 +38,7 @@ read.Data<-function(){
                      other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS")
   )
   
-
-  
-  
+ 
   ##### 2. ### reduce to our 6 samples !!!! 
   x2<-x
   targets<-c()

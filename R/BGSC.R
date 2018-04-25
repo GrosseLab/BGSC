@@ -1,29 +1,123 @@
+# ----------------------------------------------------------------------
+#' @title getQPCR
+#' @description get qPCR
+#' @author Claus Weinholdt
+#' @return a \code{data.table} 
+#' @export
+getQPCR <- function(){   
+  ### load data ---------------------------
+    data(RawQPCRsf, envir = environment()) 
+    qgenes <- c("CKAP2L", "ROCK1", "TPR","ALDH4A1", "CLCA2","GALNS") 
+  
+    # RawQPCRsf <- RawQPCR[RawQPCR$Probe == 'SF',]
+    RawQPCRsf.rep <- list()
+    RawQPCRsf.rep[['rep1']] <- RawQPCRsf[1:6,]
+    RawQPCRsf.rep[['rep2']] <- RawQPCRsf[7:12,]
+    RawQPCRsf.rep[['rep3']] <- RawQPCRsf[13:18,]
+
+  ### parameter ---------------------------
+    c0 <- get.Lset()$c$s0 ; c1 <- get.Lset()$c$s1
+    # with M sample size of c0 and N sample size of c1
+    M <- length(c0) ;N <- length(c1)
+    Nrep <- length(RawQPCRsf.rep)
+    doPlot <- FALSE
+    
+  ### delta Ct ---------------------------  
+    delta.ct <-  lapply(qgenes,function(qg)  do.call(cbind, lapply(RawQPCRsf.rep , function(rep) rep[, colnames(rep)[grepl(qg,toupper(colnames(rep)))][1]  ]   ) ) )
+    names(delta.ct) <- qgenes
+    relative.Werte <-  lapply(qgenes,function(qg)  do.call(cbind, lapply(RawQPCRsf.rep , function(rep) rep[, colnames(rep)[grepl(qg,toupper(colnames(rep)))][2]  ]   ) ) )
+    names(relative.Werte) <- qgenes
+    
+    delta.ct.Mean <- t(do.call(cbind,lapply(delta.ct, function(mat) rowMeans((mat)))))
+    colnames(delta.ct.Mean) <- c(1:6)
+    delta.ct.Mean.logFC <- (rowMeans(delta.ct.Mean[,c1]) - rowMeans(delta.ct.Mean[,c0]) ) * -1 
+  
+  ### relative.Werte ---------------------------    
+    relative.Werte.geoMean <- t(do.call(cbind,lapply(relative.Werte, function(mat) rowMeans(log2(mat)))))
+    colnames(relative.Werte.geoMean) <- c(1:6)
+    relative.Werte.geoMean.C1 <- rowMeans(relative.Werte.geoMean[,c1])
+    relative.Werte.geoMean.C0 <- rowMeans(relative.Werte.geoMean[,c0])
+    relative.Werte.geoMean.C1C0.logFC <- relative.Werte.geoMean.C1 - relative.Werte.geoMean.C0
+  
+    if(doPlot){  
+      barplot(t(cbind(relative.Werte.geoMean.C1C0.logFC,delta.ct.Mean.logFC)) ,beside=T,las=2,legend.text = c("rel",'deltaCt'),ylab = 'log2 fold change')   # qGenes$'GLIPR2' wahrscheinlich mit Fehler bei GLIPR2relative.Werte 
+    }
+    
+  ### pooeld.var ---------------------------
+    relative.Werte.var <- t(do.call(cbind,lapply(relative.Werte, function(mat) apply( log2(mat) ,1, function(vec) var(vec)  ) )))
+    colnames(relative.Werte.var) <- c(1:6)
+    relative.Werte.unvar <- relative.Werte.var * (Nrep - 1 ) # to get  sum_i ( x_i - mean(x) )^2  == `repUnVAR`
+    relative.Werte.pooeld.var.C0 <- rowSums( relative.Werte.unvar[,c0] ) / ( sum( rep( (Nrep - 1), M) ) ) # ( sum_m  `repUnVAR`_m )  \ ( sum_m M-1 )
+    relative.Werte.pooeld.var.C1 <- rowSums( relative.Werte.unvar[,c1] ) / ( sum( rep( (Nrep - 1), N) ) )
+    relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation <- sqrt( (relative.Werte.pooeld.var.C0 / M) + (relative.Werte.pooeld.var.C1 / N) )
+  
+  ### var of all values ---------------------------
+    relative.Werte.var.C0 <- sapply(relative.Werte, function(mat){ rownames(mat) <- c(1:6);  var(as.vector(log2(mat)[c0,]))} )
+    relative.Werte.var.C1 <- sapply(relative.Werte, function(mat){ rownames(mat) <- c(1:6);  var(as.vector(log2(mat)[c1,]))} )
+    relative.Werte.var.C0C1_SatterthwaiteApproximation <- sqrt( (relative.Werte.var.C0 / M) + (relative.Werte.var.C1 / N) )
+
+  ### std.err of means --> same method as for Illumina  ---------------------------
+    s1stderr <- apply(relative.Werte.geoMean[,c1],MARGIN = 1, function(row) plotrix::std.error(row,na.rm = T) )
+    s0stderr <- apply(relative.Werte.geoMean[,c0],MARGIN = 1, function(row) plotrix::std.error(row,na.rm = T) )
+    s0s1stderr = sqrt( s1stderr^2 +  s0stderr^2)
+  
+    if(doPlot){
+      barplot(t(cbind(relative.Werte.var.C0 ,relative.Werte.pooeld.var.C0,s0stderr)) ,beside=T,las=2,legend.text = c("var",'pooled.var','stdErr'),ylab = 'var',main='C0')
+      barplot(t(cbind(relative.Werte.var.C1 ,relative.Werte.pooeld.var.C1,s0stderr)) ,beside=T,las=2,legend.text = c("var",'pooled.var','stdErr'),ylab = 'var',main='C1')
+      barplot(t(cbind(relative.Werte.var.C0C1_SatterthwaiteApproximation , relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation,s0s1stderr)) ,beside=T,las=2,legend.text = c("var",'pooled.var','stdErr'),ylab = 'var',main='C0C1_SatterthwaiteApproximation')
+    }
+  ### return---------------------------
+    qCPRdataC <- data.table("rn"=names(relative.Werte) ,relative.Werte.geoMean.C1,relative.Werte.geoMean.C0,relative.Werte.geoMean.C1C0.logFC,
+                             relative.Werte.pooeld.var.C0,relative.Werte.pooeld.var.C1,relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation,
+                             relative.Werte.var.C0,relative.Werte.var.C1,relative.Werte.var.C0C1_SatterthwaiteApproximation,
+                            s1stderr,s0stderr,s0s1stderr)
+    setkey(qCPRdataC)              
+    return(qCPRdataC)
+  
+  # vec <- c( 2,33,45,12,44,21,442)
+  # sqrt( sum( (vec - mean(vec))^2 ) / (length(vec)-1) )
+  # sd(vec)
+  # sum( (vec - mean(vec))^2 ) 
+  # var(vec) * (length(vec)-1)
+}  
+
+# ---------------------------------------------------------------------- 
 #' @title normalize ExpData
 #' @description .AAA
 #' @author Claus Weinholdt
 #' @usage normalizeExpData(pval)
 #' @param pval is the dectecion p value ot the Illumina BeatChip
 #' @return a \code{limma object} 
+#' @import limma stringr
 #' @export
 normalizeExpData <- function(pval=0.05){
   data(ExpData, envir = environment()) 
-  pe2 <- propexpr(ExpData);
+  pe2 <- limma::propexpr(ExpData);
   dim(pe2) <- c(2,3);
   dimnames(pe2) <- list(CellType=c("Control","EGF"),Donor=c(1,2,3));
-  print(pe2) ;
-  print(mean(pe2[1:2,]))
-  print(ExpData)
+  # print(pe2) ;
+  # print(mean(pe2[1:2,]))
+  # print(ExpData)
 
-  print(dim(ExpData))
-  y2 <- neqc(ExpData,negctrl="NEGATIVE") ; NORM<-"Limma_BG_QN"     #,robust=TRUE)
+  
+  y2 <- limma::neqc(ExpData,negctrl="NEGATIVE") ; NORM<-"Limma_BG_QN"     #,robust=TRUE)
   expressed <- rowSums(y2$other$Detection <= pval) == 6 #>= 3
   #expressed <- rowSums(y2$other$Detection <= pval) >= 3
   y2 <- y2[expressed,]
-  print(dim(y2))
+  
+  message(paste0('genes with detection pval <= ',pval,' --> ',
+  sum(stringr::str_count(rownames(y2$E),'ILMN_')), ' of ',
+  sum(stringr::str_count(rownames(ExpData$E),'ILMN_'))
+  ))
+  
+  
   return(y2)
+  
+
   
 }
 
+# ----------------------------------------------------------------------
 #' @title set classes a,b,c and d
 #' @description set classes a,b,c and d
 #' @author Claus Weinholdt
@@ -40,18 +134,20 @@ get.Lset <- function(){
   return(Lsets)
 }
 
+# ----------------------------------------------------------------------
 .Lset.get.var <- function(d,Lset,LsetMean,LsetN){
   #### unbiased sample variance using N-1 ! 
   
-  if(LsetN['s1']>0){
-    tmpvar <- (  sum((d[ Lset[["s0"]]  ] - LsetMean['s0'])^2) 
-                 + sum((d[ Lset[["s1"]]  ] - LsetMean['s1'])^2)) / ((LsetN['s0']-1) + (LsetN['s1']-1))
+  if (LsetN['s1'] > 0) {
+    tmpvar <- ( sum((d[ Lset[["s0"]]  ] - LsetMean['s0'])^2) 
+              + sum((d[ Lset[["s1"]]  ] - LsetMean['s1'])^2)) / ((LsetN['s0']-1) + (LsetN['s1']-1))
   }else{
     tmpvar <- (sum((d[ Lset[["s0"]]  ] - LsetMean['s0'])^2))  / (LsetN['s0']-1)
   }
   return( unname(tmpvar) )
 }
 
+# ----------------------------------------------------------------------
 .Lset.get.logL <- function(d,Lset,LsetMean,LsetN,LsetVar){
   
   .NV <- function(d,mu,tau){
@@ -71,6 +167,7 @@ get.Lset <- function(){
   return(TmplogL)  
 }
 
+# ----------------------------------------------------------------------
 #' @title calucate the the log likelihood for each class for each gene 
 #' @description calucate the the log likelihood for each class for each gene 
 #' @author Claus Weinholdt
@@ -92,7 +189,7 @@ logLikelihoodOfnormData <- function(x){  # with var-estimator
       LsetMean <- sapply(Lset,function(x) mean(d[x],na.rm = T)  )  #;if(is.nan(LsetMean['s1'])){ print("A")}
       LsetVar <- .Lset.get.var(d,Lset,LsetMean,LsetN)
       LsetlogL <- .Lset.get.logL(d,Lset,LsetMean,LsetN,LsetVar)
-      return(list("N"=LsetN , 'Mean' = LsetMean, "Var" = LsetVar , "logL" = LsetlogL))
+      return(list("N" = LsetN , 'Mean' = LsetMean, "Var" = LsetVar , "logL" = LsetlogL))
     })
     
     ALL.MUs <<- rbind( ALL.MUs, as.vector(sapply(res,function(x) x$Mean)) )
@@ -107,6 +204,7 @@ logLikelihoodOfnormData <- function(x){  # with var-estimator
   return(logL)
 }
 
+# ----------------------------------------------------------------------
 #' @title maxIndex of a vector
 #' @description get the maximal Index
 #' @author Claus Weinholdt
@@ -118,6 +216,7 @@ maxIndex<-function(x){
   return(which(x == max(x)))
 }
 
+# ----------------------------------------------------------------------
 #' @title minIndex of a vector
 #' @description get the minimal Index
 #' @author Claus Weinholdt
@@ -125,10 +224,11 @@ maxIndex<-function(x){
 #' @param x is a vector
 #' @return a \code{value}  
 #' @export
-minIndex<-function(x){
+minIndex <- function(x){
   return(which(x == min(x)))
 }
 
+# ----------------------------------------------------------------------
 #' @title calucate BIC and AIC
 #' @description calucate BIC and AIC
 #' @author Claus Weinholdt
@@ -164,6 +264,7 @@ InformationCriterion <- function(logL,npar,k , IC='BIC'){
   }  
 }
 
+# ----------------------------------------------------------------------
 #' @title get InformationCriterion
 #' @description get InformationCriterion (AIC or BIC) of LogLik matrix 
 #' @author Claus Weinholdt
@@ -179,6 +280,7 @@ get.IC <- function(L,npar,k,IC = 'BIC'){
   return(IC)
 } 
 
+# ----------------------------------------------------------------------
 #' @title get Posterior from BIC
 #' @description get Posterior from BIC
 #' @author Claus Weinholdt
@@ -206,6 +308,7 @@ get.Posterior <- function(B, Pis= c(0.7,0.1,0.1,0.1) ) {
   return(P_m_x)
 }
 
+# ----------------------------------------------------------------------
 #' @title get Results of Posterior data
 #' @description get the Genes assigned to the best class
 #' @author Claus Weinholdt
@@ -240,6 +343,93 @@ get.gene.classes <- function(data, indexing="max", filter=0.75, DoPlot=FALSE){
   return(list("res"=res,"resFilter"=resFilter))
 }
 
+# ----------------------------------------------------------------------
+#' @title normalize ExpData
+#' @description .AAA
+#' @author Claus Weinholdt
+#' @usage get.log2Mean.and.log2FC(normData)
+#' @param normData is the normData data object
+#' @return a \code{list} with mean , std.err , log2FC and std.err of log2FC 
+#' @note  \code{std.error.xy = sqrt( std.error(x)^2 +  std.error(y)^2)}
+#' @import purrr plotrix
+#' @export
+get.log2Mean.and.log2FC <- function(normData) {
+  
+  Lset <- get.Lset()
+  resOut <- purrr::map2(Lset,names(Lset), 
+              function(set, setN){
+                
+                tmp.dt <- data.table()
+                s0 <- set$s0
+                s1 <- set$s1
+                
+                if ( !is.null(s1) ) {
+
+                  if ( (length(s0) > 1 & length(s1) > 1) ) {
+                    
+                    s1M <- rowMeans( normData$E[,s1]) 
+                    s0M <- rowMeans( normData$E[,s0]) 
+                    s1s0FC <- s1M - s0M
+                    
+                    s1stderr <- apply(normData$E[,s1],MARGIN = 1, function(row) plotrix::std.error(row,na.rm = T) )
+                    s0stderr <- apply(normData$E[,s0],MARGIN = 1, function(row) plotrix::std.error(row,na.rm = T) )
+                    
+                    # https://www.researchgate.net/post/Can_anyone_help_with_calculating_error_in_RT-qPCRs_fold-change_data
+                    s0s1stderr = sqrt( s1stderr^2 +  s0stderr^2)
+                    
+                    tmp.dt <- data.table("rn" = names(s1M), s1M , s0M , s1s0FC , s1stderr, s0stderr,s0s1stderr)                      
+                    setkey(tmp.dt,'rn')
+                    
+                  } else if ( (length(s0) == 1 & length(s1) > 1) ) {
+                    
+                    s1M <- rowMeans( normData$E[,s1]) 
+                    s0M <- normData$E[,s0]
+                    s1s0FC <- s1M - s0M
+                    
+                    tmp.dt <- data.table("rn" = names(s1M), s1M , s0M , s1s0FC)                  
+                    setkey(tmp.dt,'rn')
+                    
+                  } else if ( (length(s1) == 1 & length(s0) > 1) ) { 
+                    
+                    s1M <- normData$E[,s1] 
+                    s0M <- rowMeans( normData$E[,s0]) 
+                    s1s0FC <- s1M - s0M
+                    
+                    tmp.dt <- data.table("rn" = names(s1M), s1M , s0M , s1s0FC)                    
+                    setkey(tmp.dt,'rn')
+                    
+                  }
+                  
+                } else {
+                  s0M <- rowMeans( normData$E[,s0]) 
+                  
+                  tmp.dt <- data.table("rn" = names(s0M) , s0M )                    
+                  setkey(tmp.dt,'rn')
+                }
+                
+                return(tmp.dt)
+                
+              } )
+  
+  ### SatterthwaiteApproximation -> sqrt( (var(x)/M ) + (var(y)/N) ) ; with M sample size of and N sample size of y
+  ### equal to 
+  ### std.error.xy = sqrt( std.error(x)^2 +  std.error(y)^2 )
+  FYI <- FALSE
+  if (FYI) {
+    c0 <- c(1,3,4,5);      c1 <- c(2,6); 
+    xkm <- normData$E[,c0] ; M <- length(c0)
+    ykn <- normData$E[,c1] ; N <- length(c1)
+    #http://www.statisticshowto.com/satterthwaite-approximation/
+    #https://wolfweb.unr.edu/~ldyer/classes/396/PSE.pdf
+    SatterthwaiteApproximation <- sqrt( (apply(xkm,1,var) / M) + (apply(ykn,1,var) / N) )
+    hist( SatterthwaiteApproximation - resOut$c[names(SatterthwaiteApproximation),][['s0s1stderr']],100)
+  }
+  
+  return(resOut)
+  
+}
+
+# ----------------------------------------------------------------------
 #' @title make data for enrichment analysis
 #' @description make data for enrichment analysis
 #' @author Claus Weinholdt
@@ -274,6 +464,7 @@ make.enrichment.data <- function(data,LsetForFC,normData){
                 "REFSEQlogFC"=tmp2,"REFSEQ"= unique(as.character(tmp2$REFSEQ_MRNA))))
 }
 
+# ----------------------------------------------------------------------
 #' @title Convert REFSEQ_MRNA string from DAVID to Illumina ids
 #' @description Convert REFSEQ_MRNA string from DAVID to Illumina ids
 #' @author Claus Weinholdt
@@ -295,6 +486,7 @@ REFSEQ_MRNA_to_Illm <- function(string, asString=FALSE){
   return(ILM)
 }
 
+# ----------------------------------------------------------------------
 PIS_Study <- function(){
   ### 
   PIS <- list("P91"=c(0.91 ,0.03 ,0.03  ,0.03),
@@ -312,3 +504,45 @@ PIS_Study <- function(){
   
 }
 
+# ----------------------------------------------------------------------
+makExpData <- function() {
+  wd2 <- "/Volumes/ianvsITZroot/home/adsvy/Kappler/Kappler_Wichmann_Medizin"
+  x <- limma::read.ilmn(files=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt")  ,sep="\t",
+                        ctrlfiles=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/ControlProbeProfile_SF767-1-799-6.txt"),
+                        other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS")
+  )
+  
+  ##### 2. ### reduce to our 6 samples !!!! 
+  x2<-x
+  targets<-c()
+  targets$CellType=c("KO","KO_EGF","ALL","ALL_EGF","14","14_EGF")
+  set<-c(1:6) #SF 767
+  # set<-c(7:12) # x 999
+  x2$E<-x2$E[,set]
+  x2$other$Detection<-x2$other$Detection[,set]
+  x2$other$BEAD_STDERR<-x2$other$BEAD_STDERR[,set]
+  x2$other$Avg_NBEADS<-x2$other$Avg_NBEADS[,set]
+  x2$targets<-targets
+  
+  ExpData <- x2
+  setwd('/Users/weinhol/GitHub/BGSC')
+  devtools::use_data(ExpData,pkg = 'BGSC')
+  #data(ercc, envir = environment()) 
+}
+
+# ----------------------------------------------------------------------
+makeQPCR <- function(){
+  wd2 <- "/Volumes/ianvsITZroot/home/adsvy/Kappler/Kappler_Wichmann_Medizin/Auswertung/"
+  RawQPCR <- read.csv(paste(sep="",wd2,"/qPCR/MyData.csv"))
+  setwd('/Users/weinhol/GitHub/BGSC')
+  devtools::use_data(RawQPCR)
+  
+  # qgenes<-c("TPR","CKAP2L","KIF5C","ROCK1","BPNT1","GALNS","GLIPR2","KEL","ALDH4A1","CDCP1","CLCA2")
+  qgenes<-c("CKAP2L", "ROCK1", "TPR","ALDH4A1", "CLCA2","GALNS") 
+  RawQPCR.paper <- RawQPCR[,c(colnames(RawQPCR)[1:2],as.vector(sapply(qgenes,function(x) colnames(RawQPCR)[grepl(x,toupper(colnames(RawQPCR)))] )))]
+  RawQPCRsf <- RawQPCR.paper[ RawQPCR.paper$Probe == 'SF',]
+  RawQPCR799 <- RawQPCR.paper[ RawQPCR.paper$Probe == '799',]
+  setwd('/Users/weinhol/GitHub/BGSC')
+  devtools::use_data(RawQPCRsf)
+  
+}

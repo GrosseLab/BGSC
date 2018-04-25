@@ -14,7 +14,9 @@ Imports:
     org.Hs.eg.db,
     stringr,
     gplots,
-    VennDiagram
+    VennDiagram,
+    plotrix,
+    purrr
 Suggests: 
     knitr (>= 1.6),
     rmarkdown (>= 0.3.3),

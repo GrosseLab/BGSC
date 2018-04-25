@@ -29,6 +29,20 @@
 "RawQPCR"
 
 #' Expression data set of all qPCRs
+#'
+#' A dataset containing the
+#' 
+#' @format A data frame with 27416 rows and 82 variables:
+#' \describe{
+#'   \item{0A Intact}{length normed counts}
+#'   \item{0B Intact}{length normed counts}
+#'   ...
+#'   \item{240B Grafted top}{length normed counts}
+#' }
+#' 
+"RawQPCRsf"
+
+#' Expression data set of all qPCRs
 #' GEOD.adf <-  fread('Illumina HumanHT-12_V4.0_A-GEOD-13475.adf.txt')
 #' setnames(GEOD.adf,'Reporter Database Entry [genbank]','genbank')
 #' setnames(GEOD.adf,'Reporter Name','illumina_humanht_12_v4')
