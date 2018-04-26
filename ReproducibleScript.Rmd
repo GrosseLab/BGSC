@@ -15,7 +15,10 @@ Weinholdt et. al __Analysis of genes regulated by isoforms of the epidermal grow
 * [Getting started](#start)
     * [Installation](#Installation)
     * [Data](#data)
-* [Visualization](#vis)
+* [Analysis](#Analysis)
+* [Comapre Illumina data with RT-qPCR](#Comapre)
+    * [Examples for group c](#GrC)
+    * [Fold changes plot of Illumina data vs RT-qPCR](#FCplot)
 
 ## <a name="start"></a>Getting started
 
@@ -30,18 +33,21 @@ library(BGSC)
 ```
 
 ### <a name="data"></a> Load expression data
-Loading CXXX data 
+<!-- Loading data  -->
 ```r
 data(ExpData)
 ```
 
-```{r, comment=NA, echo=FALSE}
+```{r, comment=NA, echo=FALSE,}
 suppressWarnings( library("BGSC",quietly = TRUE,warn.conflicts = FALSE) )
 library(ggplot2)
 library(gridExtra)
 library(grid)
 library(gtable)
+suppressWarnings( library(purrr,quietly = TRUE,warn.conflicts = FALSE) ) 
 ```
+
+## <a name="Analysis"></a> Run analysis
 
 ### normalize Data
 ```{r normalizeExpData}
@@ -52,25 +58,18 @@ normData <- normalizeExpData()
 ```{r logLik}
 Lsets <- get.Lset()
 normDataLogLik <- logLikelihoodOfnormData(normData$E)
-rownames(ALL.MUs) <- rownames(normData$E)
-colnames(ALL.MUs) <- c('a0','a1','b0','b1','c0','c1','d0','d1')
-rownames(ALL.VARs) <- rownames(normData$E)
-colnames(ALL.VARs) <- c('a','b','c','d')
 ```
 
 #### Density plots with fitted normal distribution 
-
-```{r Density, echo=FALSE, fig.height=9, fig.width=9}
-aaa <- Density.NV.fit.plot(id = 'ILMN_1687840',normData,useGroup = "a",DOplot = FALSE)
-bbb <- Density.NV.fit.plot(id = 'ILMN_1684585',normData,useGroup = "b",DOplot = FALSE)
-ccc <- Density.NV.fit.plot(id = 'ILMN_1730999',normData,useGroup = "c",DOplot = FALSE)
-ddd <- Density.NV.fit.plot(id = 'ILMN_2320964',normData,useGroup = "d",DOplot = FALSE)
-
-grid.arrange(aaa + theme(legend.position="none")  , 
-             bbb + theme(legend.position="none") ,
-             ccc + theme(legend.position="none") ,
-             ddd + theme(legend.position="none") ,
-             ncol=2,nrow=2)
+```{r Density, echo=TRUE, fig.height=9, fig.width=9}
+GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
+names(GeneExample) <- c('a','b','c','d')
+tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData,useGroup = .y ,DOplot = FALSE) )
+grid.arrange(tmpPlot$a + theme(legend.position = "none"),
+             tmpPlot$d + theme(legend.position = "none"),
+             tmpPlot$c + theme(legend.position = "none"),
+             tmpPlot$d + theme(legend.position = "none") ,ncol=2,nrow=2)
+      
 ```
 
 ### calulate BIC from logLik 
@@ -94,9 +93,11 @@ grid.arrange(aaa + theme(legend.position="none")  ,
   PostClass <- get.gene.classes(data = normDataPosterior,indexing = "max",filter = 0.75, DoPlot = TRUE)
 ```   
 
-## Comapre Illumina data with RT-qPCR
+## <a name="Comapre"></a> Comapre Illumina data with RT-qPCR
+
+### <a name="GrC"></a> Examples for group c
+
 ```{r load qPCR}
- ### compare to qPCR ----------------------------------------------------------------------
     MeanFoldChangeClass <- get.log2Mean.and.log2FC(normData = normData)
     qCPRdataC <- getQPCR()
     
@@ -110,179 +111,25 @@ grid.arrange(aaa + theme(legend.position="none")  ,
     print(do.call(c,qgenesIDs))
 ```
 
-```{r barplots data ,echo=FALSE}        
-
-    make.plot.data.FC.Ill.qPCR <- function(qCPRdata,MeanFoldChangeClass, class="c"){
-      TMP <- data.frame()
-      for (tmpG in qCPRdataC$rn  ) {
-        expC <- MeanFoldChangeClass[[class]][qgenesIDs[[tmpG]], ]
-        TMPexp <- data.frame( "Gene" = tmpG,
-                              "ExpID" = expC$rn,
-                              "Set"="Illumina",
-                              "FC" =expC[["s1s0FC"]] ,
-                              "stderr" = expC[["s0s1stderr"]]
-        )
-        
-        TMPqpc <- data.frame( "Gene" = tmpG,
-                              "Set" = "RT-qPCR",
-                              "FC" = qCPRdataC[tmpG,][["relative.Werte.geoMean.C1C0.logFC"]] ,
-                              #"stderr" = qCPRdataC[tmpG,][["relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation"]],
-                              "stderr" = qCPRdataC[tmpG,][["s0s1stderr"]]
-        )
-        
-        for (i in 1:nrow(TMPexp)) {
-          tmp <- TMPqpc 
-          tmp$ExpID <-  as.character(TMPexp[i,]$ExpID)
-          TMP <- rbind(TMP , rbind(TMPexp[i, ],tmp[,  colnames(TMPexp) ]))
-        }
-      }  
-      # TMP <- TMP[ TMP$Gene != 'KIF5C',]
-      TMP$pid <- paste0(TMP$Gene,'::',TMP$ExpID)
-      TMP$pid <- factor(TMP$pid)
-      return(TMP)
-      
-    }   
-    
-    make.plot.data.exp.Ill.qPCR <- function(plotGens,MeanFoldChangeClass, class="c"){
-      TMP <- data.frame()
-      for (tmpG in qCPRdataC$rn  ) {
-        expC <- MeanFoldChangeClass[[class]][qgenesIDs[[tmpG]], ]
-        TMPexp1 <- data.frame("Gene" = tmpG,
-                              "ExpID" = expC$rn,
-                              'Set' = paste0(class,'1'),
-                              "Mean" = expC$s1M ,
-                              "stderr" = expC$s1stderr)
-        TMPexp0 <- data.frame("Gene" = tmpG,
-                              "ExpID" = expC$rn,
-                              'Set' = paste0(class,'0'),
-                              "Mean" = expC$s0M ,
-                              "stderr" = expC$s0s1stderr)
-        
-        TMP <-  rbind(TMP,rbind(TMPexp0,TMPexp1) )
-        
-      }  
-      # TMP <- TMP[ TMP$Gene != 'KIF5C',]
-      TMP$pid <- paste0(TMP$Gene,'::',TMP$ExpID)
-      TMP$pid <- factor(TMP$pid)
-      return(TMP)
-      
-    }
-    
-    ### ggplot2 theme  ----------------------------------------------------------------------
-      cols <- c(RColorBrewer::brewer.pal(9,"RdGy")[8],RColorBrewer::brewer.pal(9,"Reds")[6])
-      base_size <- 12
-      .thememap <- function(base_size = 12, legend_key_size = 0.4, base_family = "", col = "grey70") {
-        ggplot2::theme_gray(base_size = base_size, base_family = base_family) %+replace% 
-          ggplot2::theme(title = ggplot2::element_text(face="bold", colour=1,angle=0           ,vjust= 0.0,           size=base_size),
-                         axis.title.x = ggplot2::element_text(face="bold", colour=1, angle=0   ,vjust= 0.0,           size=base_size),
-                         # axis.text.x  = ggplot2::element_text(face="bold", colour=1, angle = -30 , vjust = 1, hjust = 0, size=base_size),
-                         axis.text.x  = ggplot2::element_text(face="bold", colour=1, angle = 270          , hjust = 0, size=base_size),
-                         strip.text.x = ggplot2::element_text(face="bold", colour=1, angle=0    ,vjust= 0.5,           size=base_size),
-                         axis.title.y = ggplot2::element_text(face="bold", colour=1, angle=90   ,vjust= 1.5, hjust=.5, size=base_size),
-                         axis.text.y  = ggplot2::element_text(face="bold", colour=1,                                  size=base_size),
-                         legend.text  = ggplot2::element_text(face="bold" ,colour=1, angle=0  ,vjust= 0.0,             size=base_size),
-                         legend.title = ggplot2::element_text(face="bold" ,colour=1, angle=0  ,vjust= 0.2,             size=base_size),
-                         
-                         
-                         axis.ticks =  ggplot2::element_line(colour = "grey70", size = 0.5),
-                         panel.grid.major =  ggplot2::element_line(colour = col, size = 0.2),
-                         panel.grid.minor =  ggplot2::element_blank(),
-                         panel.background = ggplot2::element_rect(fill="white",size = 0.2,),
-                         # #panel.grid.minor.y = element_line(size=3),
-                         # panel.grid.major = ggplot2::element_line(colour = "white"),
-                         
-                         # Force the plot into a square aspect ratio
-                         # aspect.ratio = 1,
-                         aspect.ratio = 9 / 16,
-                         
-                         legend.key.size  = ggplot2::unit(legend_key_size, "cm"),
-                         plot.title = ggplot2::element_text(hjust = 0.5 , vjust= 1)          
-          )
-      }
-```
-
-## Barplot mean expression data of Illumina 
-```{r barplot exp data ,echo=FALSE}       
-    ### bar Illumina expression ----------------------------------------------------------------------
-      PlotDataEXP <- make.plot.data.exp.Ill.qPCR(qCPRdata,MeanFoldChangeClass)
-      
-      # print(PlotDataEXP)
-      
-      rns <- levels(PlotDataEXP$Gene)[c(2,5,6,1,3,4)] ; PlotDataEXP$Gene <- factor(PlotDataEXP$Gene, levels = rns)
-      rns <- levels(PlotDataEXP$pid)[c(2,5,6,1,3,4)]  ; PlotDataEXP$pid <- factor(PlotDataEXP$pid, levels = rns)
-      
-      cols <-  RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
-      limits <- aes(ymax = PlotDataEXP$Mean + PlotDataEXP$stderr , ymin=PlotDataEXP$Mean - PlotDataEXP$stderr)
-      dodge <- position_dodge(width=0.9)
-      
-      PlotExp <- ggplot(PlotDataEXP,aes(x=factor(Gene),y=Mean,fill=factor(Set))) +  
-        geom_bar(position="dodge",stat="identity") + 
-        geom_errorbar(limits, position=dodge, width=0.25) +
-        ylim(c(0 ,10)) +
-        scale_fill_manual(values = cols,name="") + 
-        labs(x = "", y = "Log2 mean expression",title="mean expression data of Illumina") +  
-        .thememap(base_size = base_size,legend_key_size = 0.6) + 
-        theme(legend.position="bottom") 
-      print(PlotExp) 
-
-```                
-```{r results="PlotDataEXP", echo = FALSE}
-knitr::kable(PlotDataEXP, caption = "Table 1", row.names = F)
-```
-
-## Barplot comparison of Illumina data and RT-qPCR Log2-fold change
-```{r barplot FC, echo=FALSE}
-    ### bar log2 FC qPCR Illumina  ----------------------------------------------------------------------
-      PlotDataFC <- make.plot.data.FC.Ill.qPCR(qCPRdata,MeanFoldChangeClass)
-      
-      # print(PlotDataFC)
-      
-      rns <- levels(PlotDataFC$Gene)[c(2,5,6,1,3,4)] ; PlotDataFC$Gene <- factor(PlotDataFC$Gene, levels = rns)
-      rns <- levels(PlotDataFC$pid)[c(2,5,6,1,3,4)]  ; PlotDataFC$pid <- factor(PlotDataFC$pid, levels = rns)
-      
-      cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(2,10)]
-      limits <- aes(ymax = PlotDataFC$FC + PlotDataFC$stderr , ymin=PlotDataFC$FC - PlotDataFC$stderr)
-      dodge <- position_dodge(width=0.9)
-      
-      # g1 <- ggplot(PlotDataFC,aes(x=factor(pid),y=FC,fill=factor(Set))) +
-      PlotFC <- ggplot(PlotDataFC,aes(x=factor(Gene),y=FC,fill=factor(Set))) +  
-        geom_bar(position="dodge",stat="identity") + 
-        geom_errorbar(limits, position=dodge, width=0.25) +
-        ylim(c(-2 ,2)) +
-        labs(x = "", y = "Log2-fold change",title="Comparison of Illumina data and RT-qPCR") +
-        scale_fill_manual(values = cols,name="") + 
-        .thememap(base_size = base_size,legend_key_size = 0.6) + 
-        theme(legend.position="bottom") 
-      print(PlotFC)     
-```
-
-```{r results="PlotDataFC", echo = FALSE}
-knitr::kable(PlotDataFC, caption = "Table 2", row.names = F)
-```
-
-
-###  How expression pattern von group c should look like 
-```{r group c example ,echo = FALSE }   
+### Schematic expression patterns of group c 
+c0 is red and c1 is blue ... 
+```{r group c example, echo=FALSE, fig.height=4, fig.width=5}
       ### bar log2 FC qPCR Illumina  ----------------------------------------------------------------------
         Leset <- get.Lset()
         pmat <- t(matrix(c(0,1,0,0,0,1),2,3))
         dimnames(pmat) <- list( c('no RNAi','RNAi by siRNA ALL','RNAi by siRNA I'),c('no EGF','EGF'))  
         pmat <- pmat[c(1,3,2),] ## to get same oder as in paper
         bk = seq(0,max(1),by = 1)
-        hmcols <- c(RColorBrewer::brewer.pal(9,"Reds")[6],RColorBrewer::brewer.pal(9,"Blues")[7])# colorRampPalette(c("blue", "red"))(length(bk))
-        
-        print('A')
-        pheatmap::pheatmap(pmat,color = hmcols,breaks = seq(-1,1,by = 1) ,display_numbers = T,fontsize_number = 20,number_format = '%.0f',cluster_rows = FALSE,cluster_cols = FALSE,main='expression pattern group c',fontsize = 12,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black',legend = FALSE)
+        #hmcols <- c(RColorBrewer::brewer.pal(9,"Reds")[6],RColorBrewer::brewer.pal(9,"Blues")[7])# colorRampPalette(c("blue", "red"))(length(bk))
+        hmcols <- RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
+        pheatmap::pheatmap(pmat,color = hmcols,breaks = seq(-1,1,by = 1) ,display_numbers = T,fontsize_number = 20,number_format = '%.0f',cluster_rows = FALSE,cluster_cols = FALSE,main='expression pattern group c',fontsize = 10,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black',legend = FALSE)
 ```
 
-###  How expression pattern of compare genes
-```{r exp genes ,echo = FALSE }                  
-        library(gridExtra)
-        library(grid)
-        library(gtable)
-      
+###  Expression patterns 
+```{r group c exp genes ,echo = FALSE }                  
+
         Gene.gtable <- list()
-        for( tmoG in names(qgenesIDs)){
+        for(tmoG in names(qgenesIDs)){
           pmat <- t(matrix(normData$E[qgenesIDs[[tmoG]],],2,3))
           dimnames(pmat) <- list( c('no RNAi','RNAi by siRNA ALL','RNAi by siRNA I'),c('no EGF','EGF'))  
           pmat <- pmat[c(1,3,2),] ## to get same oder as in paper
@@ -299,7 +146,7 @@ knitr::kable(PlotDataFC, caption = "Table 2", row.names = F)
         }
 ```
 
-```{r exp genes big, echo=FALSE, fig.height=8, fig.width=12}
+```{r group c exp genes plot, echo=FALSE, fig.height=8, fig.width=12}
   addBorder_gtable <- function(g){ g <- gtable_add_grob(g,
                                             grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
                                             t= 1 , b = nrow(g), l = 1, r = ncol(g))
@@ -318,6 +165,78 @@ knitr::kable(PlotDataFC, caption = "Table 2", row.names = F)
     addBorder_gtable(Gene.gtable$GALNS$gtable),
     nrow=2,ncol=3)             
 ```
+
+### Barplot mean expression data of Illumina 
+By summerizing the the expression of c0 and c1 we get ... with stderr
+
+```{r barplot exp data ,echo=FALSE}       
+    ### bar Illumina expression ----------------------------------------------------------------------
+      PlotDataEXP <- make.plot.data.exp.Ill.qPCR(qCPRdata = qCPRdataC, MeanFoldChangeClass = MeanFoldChangeClass,class="c")
+      
+      # print(PlotDataEXP)
+      
+      rns <- levels(PlotDataEXP$Gene)[c(2,5,6,1,3,4)] ; PlotDataEXP$Gene <- factor(PlotDataEXP$Gene, levels = rns)
+      rns <- levels(PlotDataEXP$pid)[c(2,5,6,1,3,4)]  ; PlotDataEXP$pid <- factor(PlotDataEXP$pid, levels = rns)
+      
+      cols <-  RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
+      limits <- aes(ymax = PlotDataEXP$Mean + PlotDataEXP$stderr , ymin=PlotDataEXP$Mean - PlotDataEXP$stderr)
+      dodge <- position_dodge(width = 0.9)
+      
+      base_size <- 12
+      PlotExp <- ggplot(PlotDataEXP,aes(x=factor(Gene),y=Mean,fill=factor(Set))) +  
+        geom_bar(position="dodge",stat="identity") + 
+        geom_errorbar(limits, position=dodge, width=0.25) +
+        ylim(c(0 ,10)) +
+        scale_fill_manual(values = cols,name="") + 
+        labs(x = "", y = "Log2 mean expression",title="mean expression data of Illumina") +  
+        .thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
+        # theme( aspect.ratio = 9 / 16) + 
+        theme(legend.position="bottom") 
+      print(PlotExp) 
+
+```
+
+<!-- 
+```{r results="PlotDataEXP", echo = FALSE}
+knitr::kable(PlotDataEXP, caption = "Table 1", row.names = F)
+```
+-->
+
+### <a name="FCplot"></a> Log2 fold changes of Illumina data vs RT-qPCR
+```{r barplot FC, echo=FALSE}
+    ### bar log2 FC qPCR Illumina  ----------------------------------------------------------------------
+      PlotDataFC <- make.plot.data.FC.Ill.qPCR(qCPRdata = qCPRdataC, MeanFoldChangeClass, class="c" )
+      
+      # print(PlotDataFC)
+      
+      rns <- levels(PlotDataFC$Gene)[c(2,5,6,1,3,4)] ; PlotDataFC$Gene <- factor(PlotDataFC$Gene, levels = rns)
+      rns <- levels(PlotDataFC$pid)[c(2,5,6,1,3,4)]  ; PlotDataFC$pid <- factor(PlotDataFC$pid, levels = rns)
+      
+      cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(2,10)]
+      limits <- aes(ymax = PlotDataFC$FC + PlotDataFC$stderr , ymin=PlotDataFC$FC - PlotDataFC$stderr)
+      dodge <- position_dodge(width=0.9)
+      
+      # g1 <- ggplot(PlotDataFC,aes(x=factor(pid),y=FC,fill=factor(Set))) +
+      PlotFC <- ggplot(PlotDataFC,aes(x=factor(Gene),y=FC,fill=factor(Set))) +  
+        geom_bar(position="dodge",stat="identity") + 
+        geom_errorbar(limits, position=dodge, width=0.25) +
+        ylim(c(-2 ,2)) +
+        labs(x = "", y = "Log2-fold change",title="Comparison of Illumina data and RT-qPCR") +
+        scale_fill_manual(values = cols,name="") + 
+        .thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
+        # theme( aspect.ratio = 9 / 16) + 
+        theme(legend.position="bottom") 
+      print(PlotFC)     
+```
+
+```{r results="PlotDataFC", echo = FALSE}
+knitr::kable(PlotDataFC, caption = "Table 2", row.names = F)
+```
+
+
+
+
+
 
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

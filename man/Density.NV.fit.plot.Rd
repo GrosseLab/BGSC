@@ -14,6 +14,8 @@ Density.NV.fit.plot(id, normData, useGroup = NA, DOplot = FALSE)
 \item{useGroup}{if set to a group (eg. "a","b","c" or "d") the row is colored}
 
 \item{DOplot}{if TRUE plot is printed}
+
+\item{GrAblack}{if TRUE coloring group 'a' in black because we do not use a Indicator variable}
 }
 \value{
 a \code{list} with mean , std.err , log2FC and std.err of log2FC

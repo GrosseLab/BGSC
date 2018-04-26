@@ -198,8 +198,13 @@ logLikelihoodOfnormData <- function(x){  # with var-estimator
     return( sapply(res,function(x) x$logL))
   }))
   
-  dimnames( ALL.MUs ) <- list(rownames(x),paste0(rep(names(Lsets),each=2),c('0','1')))
-  dimnames( ALL.VARs ) <- list(rownames(x),names(Lsets))
+  dimnames( ALL.MUs ) <<- list(rownames(x),paste0(rep(names(Lsets),each=2),c('0','1')))
+  dimnames( ALL.VARs ) <<- list(rownames(x),names(Lsets))
+  
+  # rownames(ALL.MUs) <- rownames(normData$E)
+  # colnames(ALL.MUs) <- c('a0','a1','b0','b1','c0','c1','d0','d1')
+  # rownames(ALL.VARs) <- rownames(normData$E)
+  # colnames(ALL.VARs) <- c('a','b','c','d')
   
   return(logL)
 }
@@ -438,10 +443,11 @@ get.log2Mean.and.log2FC <- function(normData) {
 #' @param normData is the normData data object
 #' @param useGroup if set to a group (eg. "a","b","c" or "d") the row is colored
 #' @param DOplot if TRUE plot is printed
+#' @param GrAblack if TRUE coloring group 'a' in black because we do not use a Indicator variable
 #' @return a \code{list} with mean , std.err , log2FC and std.err of log2FC 
 #' @import ggplot2 gridExtra grid
 #' @export
-Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE){
+Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE,GrAblack=TRUE){
   Lset <- get.Lset()
   indicatorTMP <- lapply(Lset,function(x){
     vec <- rep(0,6);names(vec) <- c(1:6)
@@ -512,15 +518,15 @@ Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE){
     scale_x_continuous(limits = Lims ,breaks = seq(Lims[1],Lims[2],1)) +
     geom_point(shape = 20,size = 0)  + 
     facet_wrap(~ group,nrow = 4)  +
-    scale_color_manual(values = col2 , name = " Indicator variable", labels = list("g = 0", "g = 1" )) +
+    scale_color_manual(values = col2 , name = "Indicator variable", labels = list("g = 0", "g = 1" )) +
     labs(title=paste0(id,' -- ',IDs.dt[id,][['SYMBOL']]),y = "Density", x = "Logarithmic expression levels") +
     .thememap(14,0.6) +
     theme(legend.background = element_rect(fill="grey90", size=.5, linetype="dotted"))+
     theme(legend.position="bottom") 
   
-  if(!is.na(useGroup)){
+  if (!is.na(useGroup)) {
     bestSet <- subset(tmp, group == useGroup)
-    g2 <- g2 + geom_rect(data=bestSet, aes(xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf), colour = NA , fill = "yellow", ,alpha=.01)
+    g2 <- g2 + geom_rect(data=bestSet, aes(xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf), colour = NA , fill = "yellow", alpha = .01)
   }
   
   g3 <- g2 + 
@@ -535,18 +541,137 @@ Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE){
   g4 <- g3 + 
     geom_point(data = tmp, aes(x = logE,y = density),shape = 20,size = 3.5) +
     geom_point(data = tmp, aes(x = logE,y = density),shape = 21,size = 3,colour = "black")
-  g4
+  
+  ### coloring group 'a' in black because we do not use a Indicator variable 
+  if (GrAblack) {
+    SetA <- subset(tmp, group == 'a')
+    g4 <- g4 + 
+      with(tmp[tmp$group == "a",],stat_function(data = tmp[tmp$group == "a" & tmp$indicator == 0,],fun = dnorm,args = list(mean =  pg.M['a0'], sd = pg.s['a']), size = 1.2 ,colour = "darkslategray") ) +
+      geom_point(data = SetA, aes(x = logE,y = density), shape = 20,size = 3.5,colour = "slategray") +
+      geom_point(data = SetA, aes(x = logE,y = density), shape = 21,size = 3 , colour = "black")
+  }
   
   if (DOplot) { print(g4) }
   
-  
+  colors()[grep("gray",colors())]
   
   # g4 + annotate("rect", xmin=Lims[1], xmax=Lims[2], ymin=0, ymax=Inf, alpha=0.2, fill="red") 
   
   return(g4)
 }
 
+# ----------------------------------------------------------------------
+#' @title make.plot.data.FC.Ill.qPCR
+#' @description make.plot.data.FC.Ill.qPCR
+#' @author Claus Weinholdt
+#' @param qCPRdata is data.table with qPCR data
+#' @param MeanFoldChangeClass is data.table with Illumina data
+#' @param class for the plots 
+#' @return a \code{data.frame} as plot input 
+#' @export
+make.plot.data.FC.Ill.qPCR <- function(qCPRdata,MeanFoldChangeClass, class="c"){
+  TMP <- data.frame()
+  for (tmpG in qCPRdata$rn  ) {
+    expC <- MeanFoldChangeClass[[class]][qgenesIDs[[tmpG]], ]
+    TMPexp <- data.frame( "Gene" = tmpG,
+                          "ExpID" = expC$rn,
+                          "Set"="Illumina",
+                          "FC" =expC[["s1s0FC"]] ,
+                          "stderr" = expC[["s0s1stderr"]]
+    )
+    
+    TMPqpc <- data.frame( "Gene" = tmpG,
+                          "Set" = "RT-qPCR",
+                          "FC" = qCPRdata[tmpG,][["relative.Werte.geoMean.C1C0.logFC"]] ,
+                          #"stderr" = qCPRdata[tmpG,][["relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation"]],
+                          "stderr" = qCPRdata[tmpG,][["s0s1stderr"]]
+    )
+    
+    for (i in 1:nrow(TMPexp)) {
+      tmp <- TMPqpc 
+      tmp$ExpID <-  as.character(TMPexp[i,]$ExpID)
+      TMP <- rbind(TMP , rbind(TMPexp[i, ],tmp[,  colnames(TMPexp) ]))
+    }
+  }  
+  # TMP <- TMP[ TMP$Gene != 'KIF5C',]
+  TMP$pid <- paste0(TMP$Gene,'::',TMP$ExpID)
+  TMP$pid <- factor(TMP$pid)
+  return(TMP)
+  
+}   
 
+# ----------------------------------------------------------------------
+#' @title make.plot.data.exp.Ill.qPCR
+#' @description make.plot.data.exp.Ill.qPCR
+#' @author Claus Weinholdt
+#' @param qCPRdata is data.table with qPCR data
+#' @param MeanFoldChangeClass is data.table with Illumina data
+#' @param class for the plots 
+#' @return a \code{data.frame} as plot input 
+#' @export
+make.plot.data.exp.Ill.qPCR <- function(qCPRdata,MeanFoldChangeClass, class="c"){
+  TMP <- data.frame()
+  for (tmpG in qCPRdata$rn  ) {
+    expC <- MeanFoldChangeClass[[class]][qgenesIDs[[tmpG]], ]
+    TMPexp1 <- data.frame("Gene" = tmpG,
+                          "ExpID" = expC$rn,
+                          'Set' = paste0(class,'1'),
+                          "Mean" = expC$s1M ,
+                          "stderr" = expC$s1stderr)
+    TMPexp0 <- data.frame("Gene" = tmpG,
+                          "ExpID" = expC$rn,
+                          'Set' = paste0(class,'0'),
+                          "Mean" = expC$s0M ,
+                          "stderr" = expC$s0s1stderr)
+    
+    TMP <-  rbind(TMP,rbind(TMPexp0,TMPexp1) )
+    
+  }  
+  # TMP <- TMP[ TMP$Gene != 'KIF5C',]
+  TMP$pid <- paste0(TMP$Gene,'::',TMP$ExpID)
+  TMP$pid <- factor(TMP$pid)
+  return(TMP)
+  
+}
+
+# ----------------------------------------------------------------------
+#' @title ggplot thememap for barplot
+#' @description ggplot thememap for barplot
+#' @author Claus Weinholdt
+#' @param base_size size of font
+#' @param legend_key_size size of key for the legend 
+#' @param base_family base family
+#' @param colgridmajor color of major grid 
+#' @return a \code{theme} 
+#' @export
+.thememapBarplot <- function(base_size = 12, legend_key_size = 0.4, base_family = "", colgridmajor = "grey70") {
+  ggplot2::theme_gray(base_size = base_size, base_family = base_family) %+replace% 
+    ggplot2::theme(title = ggplot2::element_text(face="bold", colour=1,angle=0           ,vjust= 0.0,           size=base_size),
+                   axis.title.x = ggplot2::element_text(face="bold", colour=1, angle=0   ,vjust= 0.0,           size=base_size),
+                   # axis.text.x  = ggplot2::element_text(face="bold", colour=1, angle = -30 , vjust = 1, hjust = 0, size=base_size),
+                   axis.text.x  = ggplot2::element_text(face="bold", colour=1, angle = 270          , hjust = 0, size=base_size),
+                   strip.text.x = ggplot2::element_text(face="bold", colour=1, angle=0    ,vjust= 0.5,           size=base_size),
+                   axis.title.y = ggplot2::element_text(face="bold", colour=1, angle=90   ,vjust= 1.5, hjust=.5, size=base_size),
+                   axis.text.y  = ggplot2::element_text(face="bold", colour=1,                                  size=base_size),
+                   legend.text  = ggplot2::element_text(face="bold" ,colour=1, angle=0  ,vjust= 0.0,             size=base_size),
+                   legend.title = ggplot2::element_text(face="bold" ,colour=1, angle=0  ,vjust= 0.2,             size=base_size),
+                   
+                   
+                   axis.ticks =  ggplot2::element_line(colour = "grey70", size = 0.5),
+                   panel.grid.major =  ggplot2::element_line(colour = colgridmajor, size = 0.2),
+                   panel.grid.minor =  ggplot2::element_blank(),
+                   panel.background = ggplot2::element_rect(fill="white",size = 0.2,),
+                   # #panel.grid.minor.y = element_line(size=3),
+                   # panel.grid.major = ggplot2::element_line(colour = "white"),
+                   
+                   # Force the plot into a square aspect ratio
+                   # aspect.ratio = 1,
+                   # aspect.ratio = 9 / 16,
+                   
+                   legend.key.size  = ggplot2::unit(legend_key_size, "cm"),
+                   plot.title = ggplot2::element_text(hjust = 0.5 , vjust= 1)          
+    )
+}
 
 # ----------------------------------------------------------------------
 #' @title make data for enrichment analysis

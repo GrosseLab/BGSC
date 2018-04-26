@@ -233,21 +233,23 @@ main <- function(){
         nrow=2,ncol=3)              
 
   ### DES   ----------------------------------------------------------------------
+
+      GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
+      names(GeneExample) <- c('a','b','c','d')
+      tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData,useGroup = .y ,DOplot = FALSE) )
+      grid.arrange(tmpPlot$a + theme(legend.position = "none"),
+                   tmpPlot$d + theme(legend.position = "none"),
+                   tmpPlot$c + theme(legend.position = "none"),
+                   tmpPlot$d + theme(legend.position = "none") ,ncol=2,nrow=2)
       
-      IDs <- do.call(c,qgenesIDs)
-      
-      i <- 6
-      id <- "ILMN_1730999"
-      
-      
-      tmpDensity <- lapply(qgenesIDs, function(id) Density.NV.fit.plot(id = id,normData,DOplot = TRUE) )
-      
-      aaa <- Density.NV.fit.plot(id = 'ILMN_1687840',normData,useGroup = "a",DOplot = TRUE)
-      bbb <- Density.NV.fit.plot(id = 'ILMN_1684585',normData,useGroup = "b",DOplot = TRUE)
-      ccc <- Density.NV.fit.plot(id = 'ILMN_1730999',normData,useGroup = "c",DOplot = TRUE)
-      ddd <- Density.NV.fit.plot(id = 'ILMN_2320964',normData,useGroup = "d",DOplot = TRUE)
-      
-      grid.arrange(aaa + theme(legend.position="none")  , bbb + theme(legend.position="none") , ccc + theme(legend.position="none") , ddd + theme(legend.position="none") ,ncol=2,nrow=2)
+      # id <- "ILMN_1730999"
+      # tmpDensity <- lapply(qgenesIDs, function(id) Density.NV.fit.plot(id = id,normData,DOplot = TRUE) )
+      # 
+      # aaa <- Density.NV.fit.plot(id = 'ILMN_1687840',normData,useGroup = "a",DOplot = TRUE)
+      # bbb <- Density.NV.fit.plot(id = 'ILMN_1684585',normData,useGroup = "b",DOplot = TRUE)
+      # ccc <- Density.NV.fit.plot(id = 'ILMN_1730999',normData,useGroup = "c",DOplot = TRUE)
+      # ddd <- Density.NV.fit.plot(id = 'ILMN_2320964',normData,useGroup = "d",DOplot = TRUE)
+      # 
       
       head(PostClass$resFilter$d,20)
       
