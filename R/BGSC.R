@@ -86,11 +86,12 @@ getQPCR <- function(){
 #' @description .AAA
 #' @author Claus Weinholdt
 #' @usage normalizeExpData(pval)
-#' @param pval is the dectecion p value ot the Illumina BeatChip
+#' @param DetectionPval is the dectecion p value ot the Illumina BeatChip
+#' @param DetectionPvalNumber miniml number of samples with DetectionPval. If DetectionPvalNumber is "ALL" then DetectionPvalNumber equal to the number of samples
 #' @return a \code{limma object} 
 #' @import limma stringr
 #' @export
-normalizeExpData <- function(pval=0.05){
+normalizeExpData <- function(DetectionPval = 0.05 , DetectionPvalNumber = "ALL"){
   data(ExpData, envir = environment()) 
   pe2 <- limma::propexpr(ExpData);
   dim(pe2) <- c(2,3);
@@ -99,15 +100,33 @@ normalizeExpData <- function(pval=0.05){
   # print(mean(pe2[1:2,]))
   # print(ExpData)
 
+  qqq <- normexp.fit.detection.p(ExpData, detection.p="Detection")
   
-  y2 <- limma::neqc(ExpData,negctrl="NEGATIVE") ; NORM<-"Limma_BG_QN"     #,robust=TRUE)
-  expressed <- rowSums(y2$other$Detection <= pval) == 6 #>= 3
-  #expressed <- rowSums(y2$other$Detection <= pval) >= 3
+  y2 <- limma::neqc(ExpData,negctrl = "NEGATIVE",detection.p = ExpData$other$Detection ,robust=TRUE,regular = "regular", offset = 16) ; NORM <- "Limma_BG_QN"     #,robust=TRUE)
+  head(y2$E)
+  
+  if (DetectionPvalNumber == "ALL") {
+    
+    DetectionPvalNumber <- ncol(y2$other$Detection) 
+    
+    expressed <- rowSums(y2$other$Detection <= DetectionPval) == DetectionPvalNumber #>= 3
+  
+  } else {
+    if( DetectionPvalNumber >  ncol(y2$other$Detection) ) DetectionPvalNumber <- ncol(y2$other$Detection) 
+    
+    expressed <- rowSums(y2$other$Detection <= DetectionPval) >= DetectionPvalNumber
+   
+  }
+  
+ 
   y2 <- y2[expressed,]
   
-  message(paste0('genes with detection pval <= ',pval,' --> ',
-  sum(stringr::str_count(rownames(y2$E),'ILMN_')), ' of ',
-  sum(stringr::str_count(rownames(ExpData$E),'ILMN_'))
+  
+  message(
+    paste0('genes with detection pval <= ',DetectionPval,' in ',
+           DetectionPvalNumber ,' of ',ncol(y2$other$Detection),' Samples --> ',
+    sum(stringr::str_count(rownames(y2$E),'ILMN_')), ' of ',
+    sum(stringr::str_count(rownames(ExpData$E),'ILMN_'))
   ))
   
   
@@ -438,16 +457,18 @@ get.log2Mean.and.log2FC <- function(normData) {
 #' @title Density plot for NV fit 
 #' @description Density plot for NV fit 
 #' @author Claus Weinholdt
-#' @usage Density.NV.fit.plot(id, normData, useGroup = NA, DOplot = FALSE)
+#' @usage Density.NV.fit.plot(id, normData, useGroup = NA, DOplot = FALSE,basesize = 14, GrAblack = TRUE , onlySYMBOL = FALSE)
 #' @param id is a Illuminan id
 #' @param normData is the normData data object
 #' @param useGroup if set to a group (eg. "a","b","c" or "d") the row is colored
 #' @param DOplot if TRUE plot is printed
+#' @param basesize size of font
 #' @param GrAblack if TRUE coloring group 'a' in black because we do not use a Indicator variable
+#' @param onlySYMBOL if TRUE title is only gene SYMBOL
 #' @return a \code{list} with mean , std.err , log2FC and std.err of log2FC 
 #' @import ggplot2 gridExtra grid
 #' @export
-Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE,GrAblack=TRUE){
+Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE,basesize = 14, GrAblack = TRUE , onlySYMBOL = FALSE ){
   Lset <- get.Lset()
   indicatorTMP <- lapply(Lset,function(x){
     vec <- rep(0,6);names(vec) <- c(1:6)
@@ -512,6 +533,13 @@ Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE,GrAb
   if( min(logE,na.rm = T) > 0)   ymin = min(logE,na.rm = T) else ymin = 0  
   Lims <- c( floor(ymin) - 2  , ceiling(ymax) + 2 )
   
+  
+  if (onlySYMBOL) {
+    labstitle=paste0(IDs.dt[id,][['SYMBOL']])
+  } else {    
+    labstitle=paste0(id,' -- ',IDs.dt[id,][['SYMBOL']])
+  }  
+  
   g2 = ggplot(tmp, aes(x=logE,y=density,colour=indicator)) +
     scale_y_continuous(limits = c(-0.5, dM),breaks = seq(0,dM,1)) +
     # scale_x_continuous(limits = c(4.5, 15),breaks = seq(4.5,15,1)) +
@@ -519,8 +547,8 @@ Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE,GrAb
     geom_point(shape = 20,size = 0)  + 
     facet_wrap(~ group,nrow = 4)  +
     scale_color_manual(values = col2 , name = "Indicator variable", labels = list("g = 0", "g = 1" )) +
-    labs(title=paste0(id,' -- ',IDs.dt[id,][['SYMBOL']]),y = "Density", x = "Logarithmic expression levels") +
-    .thememap(14,0.6) +
+    labs(title = labstitle ,y = "Density", x = "Logarithmic expression levels") +
+    .thememap(base_size = basesize,0.6) +
     theme(legend.background = element_rect(fill="grey90", size=.5, linetype="dotted"))+
     theme(legend.position="bottom") 
   
@@ -575,13 +603,15 @@ make.plot.data.FC.Ill.qPCR <- function(qCPRdata,MeanFoldChangeClass, class="c"){
     expC <- MeanFoldChangeClass[[class]][qgenesIDs[[tmpG]], ]
     TMPexp <- data.frame( "Gene" = tmpG,
                           "ExpID" = expC$rn,
-                          "Set"="Illumina",
+                          # "Set"="Illumina",
+                          "Set"="Microarray",
                           "FC" =expC[["s1s0FC"]] ,
                           "stderr" = expC[["s0s1stderr"]]
     )
     
     TMPqpc <- data.frame( "Gene" = tmpG,
-                          "Set" = "RT-qPCR",
+                          # "Set" = "RT-qPCR",
+                          "Set" = "qPCR",
                           "FC" = qCPRdata[tmpG,][["relative.Werte.geoMean.C1C0.logFC"]] ,
                           #"stderr" = qCPRdata[tmpG,][["relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation"]],
                           "stderr" = qCPRdata[tmpG,][["s0s1stderr"]]
@@ -644,7 +674,7 @@ make.plot.data.exp.Ill.qPCR <- function(qCPRdata,MeanFoldChangeClass, class="c")
 #' @param colgridmajor color of major grid 
 #' @return a \code{theme} 
 #' @export
-.thememapBarplot <- function(base_size = 12, legend_key_size = 0.4, base_family = "", colgridmajor = "grey70") {
+thememapBarplot <- function(base_size = 12, legend_key_size = 0.4, base_family = "", colgridmajor = "grey70") {
   ggplot2::theme_gray(base_size = base_size, base_family = base_family) %+replace% 
     ggplot2::theme(title = ggplot2::element_text(face="bold", colour=1,angle=0           ,vjust= 0.0,           size=base_size),
                    axis.title.x = ggplot2::element_text(face="bold", colour=1, angle=0   ,vjust= 0.0,           size=base_size),

@@ -1,16 +1,23 @@
 main <- function(){
   
+  require(ggplot2)
+  library(gridExtra)
+  library(grid)
+  library(gtable)
+  
   ### normalize Data ----------------------------------------------------------------------
     normData <- normalizeExpData()
-  
+    # normData <- normalizeExpData(DetectionPvalNumber = 1)
   ### calulate logLik for class  Data ----------------------------------------------------------------------
     Lsets <- get.Lset()
+    IndicatorVar <- lapply(Lsets,function(x){
+      vec <- rep(0,6);names(vec) <- c(1:6)
+      if (!is.null(x$s1)) { vec[x$s1] <- 1 }
+      return(vec)
+    })
+    pheatmap::pheatmap(t(do.call(rbind, IndicatorVar)),cluster_rows = F,cluster_cols = F)
+    
     normDataLogLik <- logLikelihoodOfnormData(normData$E)
-  
-    rownames(ALL.MUs) <- rownames(normData$E)
-    colnames(ALL.MUs) <- c('a0','a1','b0','b1','c0','c1','d0','d1')
-    rownames(ALL.VARs) <- rownames(normData$E)
-    colnames(ALL.VARs) <- c('a','b','c','d')
     
   ### calulate BIC from logLik  ----------------------------------------------------------------------
     npar <- sapply(Lsets, function(x) sum(!sapply(x,is.null ) )) + 1  ## number parapeters for LogLilk -> mean + var 
@@ -36,174 +43,138 @@ main <- function(){
     qgenesIDs <- lapply(qCPRdataC$rn, function(qg) as.character(IDs.dt.c[qg,][['rn']]) )
     names(qgenesIDs) <- qCPRdataC$rn
   
-    make.plot.data.FC.Ill.qPCR <- function(qCPRdata,MeanFoldChangeClass, class="c"){
-      TMP <- data.frame()
-      for (tmpG in qCPRdataC$rn  ) {
-        expC <- MeanFoldChangeClass[[class]][qgenesIDs[[tmpG]], ]
-        TMPexp <- data.frame( "Gene" = tmpG,
-                              "ExpID" = expC$rn,
-                              "Set"="Illumina",
-                              "FC" =expC[["s1s0FC"]] ,
-                              "stderr" = expC[["s0s1stderr"]]
-        )
-        
-        TMPqpc <- data.frame( "Gene" = tmpG,
-                              "Set" = "RT-qPCR",
-                              "FC" = qCPRdataC[tmpG,][["relative.Werte.geoMean.C1C0.logFC"]] ,
-                              #"stderr" = qCPRdataC[tmpG,][["relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation"]],
-                              "stderr" = qCPRdataC[tmpG,][["s0s1stderr"]]
-        )
-        
-        for (i in 1:nrow(TMPexp)) {
-          tmp <- TMPqpc 
-          tmp$ExpID <-  as.character(TMPexp[i,]$ExpID)
-          TMP <- rbind(TMP , rbind(TMPexp[i, ],tmp[,  colnames(TMPexp) ]))
-        }
-      }  
-      # TMP <- TMP[ TMP$Gene != 'KIF5C',]
-      TMP$pid <- paste0(TMP$Gene,'::',TMP$ExpID)
-      TMP$pid <- factor(TMP$pid)
-      return(TMP)
-      
-    }
-    
-    make.plot.data.exp.Ill.qPCR <- function(plotGens,MeanFoldChangeClass, class="c"){
-      TMP <- data.frame()
-      for (tmpG in qCPRdataC$rn  ) {
-        expC <- MeanFoldChangeClass[[class]][qgenesIDs[[tmpG]], ]
-        TMPexp1 <- data.frame("Gene" = tmpG,
-                              "ExpID" = expC$rn,
-                              'Set' = paste0(class,'1'),
-                              "Mean" = expC$s1M ,
-                              "stderr" = expC$s1stderr)
-        TMPexp0 <- data.frame("Gene" = tmpG,
-                              "ExpID" = expC$rn,
-                              'Set' = paste0(class,'0'),
-                              "Mean" = expC$s0M ,
-                              "stderr" = expC$s0s1stderr)
-        
-        TMP <-  rbind(TMP,rbind(TMPexp0,TMPexp1) )
-        
-      }  
-      # TMP <- TMP[ TMP$Gene != 'KIF5C',]
-      TMP$pid <- paste0(TMP$Gene,'::',TMP$ExpID)
-      TMP$pid <- factor(TMP$pid)
-      return(TMP)
-      
-    }
-    
-    
-  ### ggplot2 theme  ----------------------------------------------------------------------
-    require(ggplot2)
-    cols <- c(RColorBrewer::brewer.pal(9,"RdGy")[8],RColorBrewer::brewer.pal(9,"Reds")[6])
-    base_size <- 12
-    .thememap <- function(base_size = 12, legend_key_size = 0.4, base_family = "", col = "grey70") {
-      ggplot2::theme_gray(base_size = base_size, base_family = base_family) %+replace% 
-        ggplot2::theme(title = ggplot2::element_text(face="bold", colour=1,angle=0           ,vjust= 0.0,           size=base_size),
-                       axis.title.x = ggplot2::element_text(face="bold", colour=1, angle=0   ,vjust= 0.0,           size=base_size),
-                       # axis.text.x  = ggplot2::element_text(face="bold", colour=1, angle = -30 , vjust = 1, hjust = 0, size=base_size),
-                       axis.text.x  = ggplot2::element_text(face="bold", colour=1, angle = 270          , hjust = 0, size=base_size),
-                       strip.text.x = ggplot2::element_text(face="bold", colour=1, angle=0    ,vjust= 0.5,           size=base_size),
-                       axis.title.y = ggplot2::element_text(face="bold", colour=1, angle=90   ,vjust= 1.5, hjust=.5, size=base_size),
-                       axis.text.y  = ggplot2::element_text(face="bold", colour=1,                                  size=base_size),
-                       legend.text  = ggplot2::element_text(face="bold" ,colour=1, angle=0  ,vjust= 0.0,             size=base_size),
-                       legend.title = ggplot2::element_text(face="bold" ,colour=1, angle=0  ,vjust= 0.2,             size=base_size),
-                       
-                       
-                       axis.ticks =  ggplot2::element_line(colour = "grey70", size = 0.5),
-                       panel.grid.major =  ggplot2::element_line(colour = col, size = 0.2),
-                       panel.grid.minor =  ggplot2::element_blank(),
-                       panel.background = ggplot2::element_rect(fill="white",size = 0.2,),
-                       # #panel.grid.minor.y = element_line(size=3),
-                       # panel.grid.major = ggplot2::element_line(colour = "white"),
-                       
-                       # Force the plot into a square aspect ratio
-                       # aspect.ratio = 1,
-                       aspect.ratio = 9 / 16,
-                       
-                       legend.key.size  = ggplot2::unit(legend_key_size, "cm"),
-                       plot.title = ggplot2::element_text(hjust = 0.5 , vjust= 1)          
-        )
-    }
-  
   ### bar log2 FC qPCR Illumina  ----------------------------------------------------------------------
-    PlotDataFC <- make.plot.data.FC.Ill.qPCR(qCPRdata,MeanFoldChangeClass)
+    PlotDataFC <- make.plot.data.FC.Ill.qPCR(qCPRdata = qCPRdataC, MeanFoldChangeClass, class="c" )
+    
+    cor.test( PlotDataFC[PlotDataFC$Set=='Microarray','FC'],PlotDataFC[PlotDataFC$Set=='qPCR','FC'] ) 
+    
+    # print(PlotDataFC)
     
     rns <- levels(PlotDataFC$Gene)[c(2,5,6,1,3,4)] ; PlotDataFC$Gene <- factor(PlotDataFC$Gene, levels = rns)
     rns <- levels(PlotDataFC$pid)[c(2,5,6,1,3,4)]  ; PlotDataFC$pid <- factor(PlotDataFC$pid, levels = rns)
     
-    # cols<-c(RColorBrewer::brewer.pal(9,"RdGy")[8],RColorBrewer::brewer.pal(9,"Reds")[6])
-    cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(2,10)]
+    # cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(2,10)]
+    cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(3,9)]
     limits <- aes(ymax = PlotDataFC$FC + PlotDataFC$stderr , ymin=PlotDataFC$FC - PlotDataFC$stderr)
     dodge <- position_dodge(width=0.9)
     
+    base_size <- 20
     # g1 <- ggplot(PlotDataFC,aes(x=factor(pid),y=FC,fill=factor(Set))) +
-    g1 <- ggplot(PlotDataFC,aes(x=factor(Gene),y=FC,fill=factor(Set))) +  
+    PlotFC <- ggplot(PlotDataFC,aes(x=factor(Gene),y=FC,fill=factor(Set))) +  
       geom_bar(position="dodge",stat="identity") + 
-      geom_errorbar(limits, position=dodge, width=0.25) +
+      geom_errorbar(limits, position=dodge, width=0.4) +
       ylim(c(-2 ,2)) +
+      # labs(x = "", y = "Log2-fold change",title="Comparison of Illumina data and RT-qPCR") +
+      labs(x = "", y = "Log2-fold change") +
       scale_fill_manual(values = cols,name="") + 
-      labs(x = "", y = "Log2-fold change") +  
-      .thememap(base_size = base_size,legend_key_size = 0.6) + 
+      thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
+      # theme( aspect.ratio = 9 / 16) + 
       theme(legend.position="bottom") 
-    g1    
-  
-  ### bar log2 FC qPCR Illumina  ----------------------------------------------------------------------
-    PlotDataEXP <- make.plot.data.exp.Ill.qPCR(qCPRdata,MeanFoldChangeClass)
+    print(PlotFC)        
+    ggsave("/Users/weinhol/GitHub/BGSC/PaperPlot/Microary_qPCR_barplot.pdf",device = 'pdf',width = 10,height = 6)
+    
+  ### bar Illumina expression ----------------------------------------------------------------------
+    PlotDataEXP <- make.plot.data.exp.Ill.qPCR(qCPRdata = qCPRdataC, MeanFoldChangeClass = MeanFoldChangeClass,class="c")
+    
+    # print(PlotDataEXP)
     
     rns <- levels(PlotDataEXP$Gene)[c(2,5,6,1,3,4)] ; PlotDataEXP$Gene <- factor(PlotDataEXP$Gene, levels = rns)
     rns <- levels(PlotDataEXP$pid)[c(2,5,6,1,3,4)]  ; PlotDataEXP$pid <- factor(PlotDataEXP$pid, levels = rns)
     
-    # cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(2,10)]
     cols <-  RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
-    
     limits <- aes(ymax = PlotDataEXP$Mean + PlotDataEXP$stderr , ymin=PlotDataEXP$Mean - PlotDataEXP$stderr)
-    dodge <- position_dodge(width=0.9)
+    dodge <- position_dodge(width = 0.9)
     
-    g2 <- ggplot(PlotDataEXP,aes(x=factor(Gene),y=Mean,fill=factor(Set))) +  
+    base_size <- 20
+    PlotExp <- ggplot(PlotDataEXP,aes(x=factor(Gene),y=Mean,fill=factor(Set))) +  
       geom_bar(position="dodge",stat="identity") + 
-      geom_errorbar(limits, position=dodge, width=0.25) +
+      geom_errorbar(limits, position=dodge, width=0.4) +
       ylim(c(0 ,10)) +
       scale_fill_manual(values = cols,name="") + 
+      # labs(x = "", y = "Log2 mean expression",title="mean expression data of Illumina") +  
       labs(x = "", y = "Log2 mean expression") +  
-      .thememap(base_size = base_size,legend_key_size = 0.6) + 
+      thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
+      # theme( aspect.ratio = 9 / 16) + 
       theme(legend.position="bottom") 
-    g2    
-
-    gridExtra::grid.arrange(g2  , g1, ncol=1)#,top=tair)
+    print(PlotExp) 
+    ggsave("/Users/weinhol/GitHub/BGSC/PaperPlot/Microary_mean_barplot.pdf",device = 'pdf',width = 10,height = 6)
+    
+    gridExtra::grid.arrange(PlotExp  , PlotFC, ncol=1)
+    ggsave("/Users/weinhol/GitHub/BGSC/PaperPlot/Microary_mean_Microary_qPCR__barplot.pdf",plot =  gridExtra::grid.arrange(PlotExp  , PlotFC, ncol=1) ,device = 'pdf',width = 10,height = 12)
     
   
   ### pheatmap of normData  ----------------------------------------------------------------------
-      Leset <- get.Lset()
-      pmat <- t(matrix(c(0,1,0,0,0,1),2,3))
+    addBorder_gtable <- function(g){ g <- gtable_add_grob(g,
+                                                          grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
+                                                          t= 1 , b = nrow(g), l = 1, r = ncol(g))
+      # g <- gtable_add_grob(g,
+      #                      grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
+      #                      t = 1, l = 1, r = ncol(g))
+      
+      return(g)
+    }
+    
+    Leset <- get.Lset()
+    pmat <- t(matrix(c(0,1,0,0,0,1),2,3))
+    dimnames(pmat) <- list( c('no RNAi','RNAi by siRNA ALL','RNAi by siRNA I'),c('no EGF','EGF'))  
+    pmat <- pmat[c(1,3,2),] ## to get same oder as in paper
+    bk = seq(0,max(1),by = 1)
+    #hmcols <- c(RColorBrewer::brewer.pal(9,"Reds")[6],RColorBrewer::brewer.pal(9,"Blues")[7])# colorRampPalette(c("blue", "red"))(length(bk))
+    hmcols <- RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
+    pheatmap::pheatmap(pmat,color = hmcols,breaks = seq(-1,1,by = 1) ,display_numbers = T,fontsize_number = 20,number_format = '%.0f',cluster_rows = FALSE,cluster_cols = FALSE,main='expression pattern group c',fontsize = 10,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black',legend = FALSE) 
+    
+    Lsets <- get.Lset()
+    IndicatorVar <- lapply(Lsets,function(x){
+      vec <- rep(0,6);names(vec) <- c(1:6)
+      if (!is.null(x$s1)) { vec[x$s1] <- 1 }
+      return(vec)
+    })
+    IndicatorVar.gtable <- purrr::map2( IndicatorVar , names(IndicatorVar), function(vec,.y){
+      
+      pmat <- t(matrix(vec,2,3))
       dimnames(pmat) <- list( c('no RNAi','RNAi by siRNA ALL','RNAi by siRNA I'),c('no EGF','EGF'))  
       pmat <- pmat[c(1,3,2),] ## to get same oder as in paper
       bk = seq(0,max(1),by = 1)
-      hmcols <- c(RColorBrewer::brewer.pal(9,"Reds")[6],RColorBrewer::brewer.pal(9,"Blues")[7])# colorRampPalette(c("blue", "red"))(length(bk))
-      pheatmap::pheatmap(pmat,color = hmcols,breaks = seq(-1,1,by = 1) ,display_numbers = T,fontsize_number = 20,number_format = '%.0f',cluster_rows = FALSE,cluster_cols = FALSE,main='expression pattern group c',fontsize = 12,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black',legend = FALSE)
+      #hmcols <- c(RColorBrewer::brewer.pal(9,"Reds")[6],RColorBrewer::brewer.pal(9,"Blues")[7])# colorRampPalette(c("blue", "red"))(length(bk))
+      hmcols <- RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
       
-      # grid.C <- pheatmap::pheatmap(pmat,color = hmcols,breaks = seq(-1,1,by = 1) ,display_numbers = T,fontsize_number = 20,number_format = '%.0f',cluster_rows = FALSE,cluster_cols = FALSE,main='expression pattern group c',fontsize = 12,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black',legend = FALSE ,silent = T)
+      if(.y == 'a') hmcols <- 'slategray'
       
-      library(gridExtra)
-      library(grid)
-      library(gtable)
+      pheatmap::pheatmap(pmat,silent = T,color = hmcols,breaks = seq(-1,1,by = 1) ,display_numbers = T,fontsize_number = 16,number_format = '%.0f',cluster_rows = FALSE,cluster_cols = FALSE,main=paste0('Expression pattern of for group ', .y),fontsize = 12 ,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black',legend = FALSE) 
+    } )
     
-      Gene.gtable <- list()
-      for( tmoG in names(qgenesIDs)){
-        pmat <- t(matrix(normData$E[qgenesIDs[[tmoG]],],2,3))
-        dimnames(pmat) <- list( c('no RNAi','RNAi by siRNA ALL','RNAi by siRNA I'),c('no EGF','EGF'))  
-        pmat <- pmat[c(1,3,2),] ## to get same oder as in paper
-        
-        pmat <- 2^pmat
-        tmpnScore <-  ceiling(pmat/100)*100
-        # tmpnScore <-  ceiling(pmat/10)*10
-        
-        bk = seq(0,max(tmpnScore),by = 1)
-        hmcols <- colorRampPalette(c("white", "darkred"))(length(bk)-1)
-        pheatmap::pheatmap(pmat,color = hmcols,breaks = seq(0,max(tmpnScore),by = 1) ,display_numbers = T,fontsize_number = 12,cluster_rows = FALSE,cluster_cols = FALSE,main=tmoG,fontsize = 12,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black', )
-                           # filename = paste0(plotDir,'/Heatmap_Score_',tair,'.pdf') ,width = 10 ,height = 10)
-        Gene.gtable[[tmoG]] <- pheatmap::pheatmap(pmat,silent = T,color = hmcols,breaks = seq(0,max(tmpnScore),by = 1) ,display_numbers = T,fontsize_number = 15,cluster_rows = FALSE,cluster_cols = FALSE,main=tmoG,fontsize = 12,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black')
-      }
+    grid.arrange(
+      addBorder_gtable(IndicatorVar.gtable$a$gtable),
+      addBorder_gtable(IndicatorVar.gtable$b$gtable),
+      addBorder_gtable(IndicatorVar.gtable$c$gtable),
+      addBorder_gtable(IndicatorVar.gtable$d$gtable),
+      nrow=2,ncol=2
+    )   
+    ggsave("/Users/weinhol/GitHub/BGSC/PaperPlot/Schematic_ExpressionPattern.pdf",
+           plot= grid.arrange(
+                              addBorder_gtable(IndicatorVar.gtable$a$gtable),
+                              addBorder_gtable(IndicatorVar.gtable$b$gtable),
+                              addBorder_gtable(IndicatorVar.gtable$c$gtable),
+                              addBorder_gtable(IndicatorVar.gtable$d$gtable),
+                              nrow=2,ncol=2) 
+           ,device = 'pdf',width = 11,height = 7)
+    
+    Gene.gtable <- list()
+    for(tmoG in names(qgenesIDs)){
+      pmat <- t(matrix(normData$E[qgenesIDs[[tmoG]],],2,3))
+      dimnames(pmat) <- list( c('no RNAi','RNAi by siRNA ALL','RNAi by siRNA I'),c('no EGF','EGF'))  
+      pmat <- pmat[c(1,3,2),] ## to get same oder as in paper
+      
+      pmat <- 2^pmat
+      tmpnScore <-  ceiling(pmat/100)*100
+      # tmpnScore <-  ceiling(pmat/10)*10
+      
+      bk = seq(0,max(tmpnScore),by = 1)
+      hmcols <- colorRampPalette(c("white", "darkred"))(length(bk)-1)
+      #pheatmap::pheatmap(pmat,color = hmcols,breaks = seq(0,max(tmpnScore),by = 1) ,display_numbers = T,fontsize_number = 12,cluster_rows = FALSE,cluster_cols = FALSE,main=tmoG,fontsize = 12,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black', )
+      # filename = paste0(plotDir,'/Heatmap_Score_',tair,'.pdf') ,width = 10 ,height = 10)
+      Gene.gtable[[tmoG]] <- pheatmap::pheatmap(pmat,silent = T,color = hmcols,breaks = seq(0,max(tmpnScore),by = 1) ,display_numbers = T,fontsize_number = 15,cluster_rows = FALSE,cluster_cols = FALSE,main=tmoG,fontsize = 12,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black')
+    }
   
       # grid.arrange(
       #   Gene.gtable$CKAP2L$gtable,
@@ -214,23 +185,15 @@ main <- function(){
       #   Gene.gtable$GALNS$gtable,
       #   nrow=2,ncol=3)
       
-      addBorder_gtable <- function(g){ g <- gtable_add_grob(g,
-                                          grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
-                                          t= 1 , b = nrow(g), l = 1, r = ncol(g))
-                    # g <- gtable_add_grob(g,
-                    #                      grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
-                    #                      t = 1, l = 1, r = ncol(g))
-                    
-                    return(g)
-      }
-      grid.arrange(
-        addBorder_gtable(Gene.gtable$CKAP2L$gtable),
-        addBorder_gtable(Gene.gtable$ROCK1$gtable),
-        addBorder_gtable(Gene.gtable$TPR$gtable),
-        addBorder_gtable(Gene.gtable$ALDH4A1$gtable),
-        addBorder_gtable(Gene.gtable$CLCA2$gtable),
-        addBorder_gtable(Gene.gtable$GALNS$gtable),
-        nrow=2,ncol=3)              
+   
+    grid.arrange(
+      addBorder_gtable(Gene.gtable$CKAP2L$gtable),
+      addBorder_gtable(Gene.gtable$ROCK1$gtable),
+      addBorder_gtable(Gene.gtable$TPR$gtable),
+      addBorder_gtable(Gene.gtable$ALDH4A1$gtable),
+      addBorder_gtable(Gene.gtable$CLCA2$gtable),
+      addBorder_gtable(Gene.gtable$GALNS$gtable),
+      nrow=2,ncol=3)                  
 
   ### DES   ----------------------------------------------------------------------
 
@@ -238,9 +201,14 @@ main <- function(){
       names(GeneExample) <- c('a','b','c','d')
       tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData,useGroup = .y ,DOplot = FALSE) )
       grid.arrange(tmpPlot$a + theme(legend.position = "none"),
-                   tmpPlot$d + theme(legend.position = "none"),
+                   tmpPlot$b + theme(legend.position = "none"),
                    tmpPlot$c + theme(legend.position = "none"),
                    tmpPlot$d + theme(legend.position = "none") ,ncol=2,nrow=2)
+      
+      
+      Density.NV.fit.plot(id = 'ILMN_1730999' ,normData,useGroup = 'c' ,DOplot = FALSE,basesize = 20,GrAblack = TRUE,onlySYMBOL = TRUE )
+      ggsave("/Users/weinhol/GitHub/BGSC/PaperPlot/DensityPlot_TPR.pdf",device = 'pdf',width = 10,height = 6)
+      
       
       # id <- "ILMN_1730999"
       # tmpDensity <- lapply(qgenesIDs, function(id) Density.NV.fit.plot(id = id,normData,DOplot = TRUE) )

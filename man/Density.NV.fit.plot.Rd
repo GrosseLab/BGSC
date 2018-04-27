@@ -4,7 +4,7 @@
 \alias{Density.NV.fit.plot}
 \title{Density plot for NV fit}
 \usage{
-Density.NV.fit.plot(id, normData, useGroup = NA, DOplot = FALSE)
+Density.NV.fit.plot(id, normData, useGroup = NA, DOplot = FALSE,basesize = 14, GrAblack = TRUE , onlySYMBOL = FALSE)
 }
 \arguments{
 \item{id}{is a Illuminan id}
@@ -15,7 +15,11 @@ Density.NV.fit.plot(id, normData, useGroup = NA, DOplot = FALSE)
 
 \item{DOplot}{if TRUE plot is printed}
 
+\item{basesize}{size of font}
+
 \item{GrAblack}{if TRUE coloring group 'a' in black because we do not use a Indicator variable}
+
+\item{onlySYMBOL}{if TRUE title is only gene SYMBOL}
 }
 \value{
 a \code{list} with mean , std.err , log2FC and std.err of log2FC

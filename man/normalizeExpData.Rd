@@ -7,7 +7,9 @@
 normalizeExpData(pval)
 }
 \arguments{
-\item{pval}{is the dectecion p value ot the Illumina BeatChip}
+\item{DetectionPval}{is the dectecion p value ot the Illumina BeatChip}
+
+\item{DetectionPvalNumber}{miniml number of samples with DetectionPval. If DetectionPvalNumber is "ALL" then DetectionPvalNumber equal to the number of samples}
 }
 \value{
 a \code{limma object}

@@ -49,12 +49,25 @@ suppressWarnings( library(purrr,quietly = TRUE,warn.conflicts = FALSE) )
 
 ## <a name="Analysis"></a> Run analysis
 
-### normalize Data
+### Normalizing Illumina BeadChips expression data
+
+We use the function *neqc* function from the *limma* package which is developed for normalizing Illumina BeadChips.
+*neqc* performs background correction using negative control probes followed by quantile normalization using negative and positive control probes. 
+The *Illumina GenomeStudio* calculates and reports a detection p-value, which represents the confidence that a given transcript is expressed above the background defined by negative control probes.
+For further analysis, we used only the those probes for which the detection p-values for all six probes were below 0.05.
 ```{r normalizeExpData}
 normData <- normalizeExpData()
 ```
 
-### calulate logLik for class  Data
+### Calulating the log likelihood for each gene in each class (*a, b, c, and d*)
+We define that:
+* Genes of group $a$ are never regulated by EGF, whereas genes of groups $b-d$ are regulated by EGF.
+* Genes of group $b$ are regulated by EGF only through other receptors besides EGFR isoforms.
+* Genes of group $c$ are regulated by EGFR isoforms II - IV and not by other receptors.
+* Genes of group $d$ are regulated by EGFR isoform I and not other receptors or EGFR isoforms II - IV.
+<!--  Based on this reduction, we can now formulate the goal of this work as the identification of putative target genes regulated by EGFR isoforms II - IV and not by other receptors or more crisply as the goal of identifying genes of group $c$. -->
+
+
 ```{r logLik}
 Lsets <- get.Lset()
 normDataLogLik <- logLikelihoodOfnormData(normData$E)
@@ -66,7 +79,7 @@ GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964')
 names(GeneExample) <- c('a','b','c','d')
 tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData,useGroup = .y ,DOplot = FALSE) )
 grid.arrange(tmpPlot$a + theme(legend.position = "none"),
-             tmpPlot$d + theme(legend.position = "none"),
+             tmpPlot$b + theme(legend.position = "none"),
              tmpPlot$c + theme(legend.position = "none"),
              tmpPlot$d + theme(legend.position = "none") ,ncol=2,nrow=2)
       
@@ -112,7 +125,9 @@ grid.arrange(tmpPlot$a + theme(legend.position = "none"),
 ```
 
 ### Schematic expression patterns of group c 
+
 c0 is red and c1 is blue ... 
+
 ```{r group c example, echo=FALSE, fig.height=4, fig.width=5}
       ### bar log2 FC qPCR Illumina  ----------------------------------------------------------------------
         Leset <- get.Lset()
@@ -167,7 +182,7 @@ c0 is red and c1 is blue ...
 ```
 
 ### Barplot mean expression data of Illumina 
-By summerizing the the expression of c0 and c1 we get ... with stderr
+By summarizing the the expression of c0 and c1 we get ... with std-err
 
 ```{r barplot exp data ,echo=FALSE}       
     ### bar Illumina expression ----------------------------------------------------------------------
@@ -189,7 +204,7 @@ By summerizing the the expression of c0 and c1 we get ... with stderr
         ylim(c(0 ,10)) +
         scale_fill_manual(values = cols,name="") + 
         labs(x = "", y = "Log2 mean expression",title="mean expression data of Illumina") +  
-        .thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
+        thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
         # theme( aspect.ratio = 9 / 16) + 
         theme(legend.position="bottom") 
       print(PlotExp) 
@@ -223,7 +238,7 @@ knitr::kable(PlotDataEXP, caption = "Table 1", row.names = F)
         ylim(c(-2 ,2)) +
         labs(x = "", y = "Log2-fold change",title="Comparison of Illumina data and RT-qPCR") +
         scale_fill_manual(values = cols,name="") + 
-        .thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
+        thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
         # theme( aspect.ratio = 9 / 16) + 
         theme(legend.position="bottom") 
       print(PlotFC)     
