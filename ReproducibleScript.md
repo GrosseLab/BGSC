@@ -3,6 +3,12 @@ Reproducible script for the publication
 Weinholdt Claus
 2018-24-4
 
+<!--   html_document:
+    toc: true
+    theme: united
+  pdf_document:
+    toc: true
+    highlight: zenburn -->
 Weinholdt et. al **Analysis of genes regulated by isoforms of the epidermal growth factor receptor in a glioblastoma cell line**
 
 Contents
@@ -51,14 +57,16 @@ normData <- normalizeExpData()
 
 ### Calulating the log likelihood for each gene in each class (*a, b, c, and d*)
 
-We define that: - Genes of group *a* are never regulated by EGF, whereas genes of groups *b* − *d* are regulated by EGF. - Genes of group *b* are regulated by EGF only through other receptors besides EGFR isoforms. - Genes of group *c* are regulated by EGFR isoforms II - IV and not by other receptors. - Genes of group *d* are regulated by EGFR isoform I and not other receptors or EGFR isoforms II - IV. <!--  Based on this reduction, we can now formulate the goal of this work as the identification of putative target genes regulated by EGFR isoforms II - IV and not by other receptors or more crisply as the goal of identifying genes of group $c$. -->
+We define that: \* Genes of group *a* are never regulated by EGF, whereas genes of groups *b* − *d* are regulated by EGF. \* Genes of group *b* are regulated by EGF only through other receptors besides EGFR isoforms. \* Genes of group *c* are regulated by EGFR isoforms II - IV and not by other receptors. \* Genes of group *d* are regulated by EGFR isoform I and not other receptors or EGFR isoforms II - IV. <!--  Based on this reduction, we can now formulate the goal of this work as the identification of putative target genes regulated by EGFR isoforms II - IV and not by other receptors or more crisply as the goal of identifying genes of group $c$. -->
 
 ``` r
 Lsets <- get.Lset()
 normDataLogLik <- logLikelihoodOfnormData(normData$E)
 ```
 
-#### Density plots with fitted normal distribution
+#### Schematic Expression Pattern
+
+![](ReproducibleScript_files/figure-markdown_github/schematic%20gr-1.png) \#\#\#\# Density plots with fitted normal distribution
 
 ``` r
 GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
@@ -173,19 +181,19 @@ TPR       ILMN_1730999   c1     8.384344   0.0213682  TPR::ILMN_1730999
 
 ![](ReproducibleScript_files/figure-markdown_github/barplot%20FC-1.png)
 
-| Gene    | ExpID         | Set      |          FC|     stderr| pid                    |
-|:--------|:--------------|:---------|-----------:|----------:|:-----------------------|
-| ALDH4A1 | ILMN\_1696099 | Illumina |  -1.2344339|  0.1628566| ALDH4A1::ILMN\_1696099 |
-| ALDH4A1 | ILMN\_1696099 | RT-qPCR  |  -0.8431039|  0.4848167| ALDH4A1::ILMN\_1696099 |
-| CKAP2L  | ILMN\_1751776 | Illumina |   1.2106958|  0.1647013| CKAP2L::ILMN\_1751776  |
-| CKAP2L  | ILMN\_1751776 | RT-qPCR  |   1.0941976|  0.2285730| CKAP2L::ILMN\_1751776  |
-| CLCA2   | ILMN\_1803236 | Illumina |  -1.2488407|  0.2046290| CLCA2::ILMN\_1803236   |
-| CLCA2   | ILMN\_1803236 | RT-qPCR  |  -0.9681039|  0.3435681| CLCA2::ILMN\_1803236   |
-| GALNS   | ILMN\_1737949 | Illumina |  -0.8756972|  0.1113025| GALNS::ILMN\_1737949   |
-| GALNS   | ILMN\_1737949 | RT-qPCR  |  -0.4347706|  0.2874267| GALNS::ILMN\_1737949   |
-| ROCK1   | ILMN\_1808768 | Illumina |   0.7808615|  0.0735355| ROCK1::ILMN\_1808768   |
-| ROCK1   | ILMN\_1808768 | RT-qPCR  |   0.8206860|  0.3403608| ROCK1::ILMN\_1808768   |
-| TPR     | ILMN\_1730999 | Illumina |   1.2190839|  0.1312655| TPR::ILMN\_1730999     |
-| TPR     | ILMN\_1730999 | RT-qPCR  |   1.0850383|  0.3248168| TPR::ILMN\_1730999     |
+| Gene    | ExpID         | Set        |          FC|     stderr| pid                    |
+|:--------|:--------------|:-----------|-----------:|----------:|:-----------------------|
+| ALDH4A1 | ILMN\_1696099 | Microarray |  -1.2344339|  0.1628566| ALDH4A1::ILMN\_1696099 |
+| ALDH4A1 | ILMN\_1696099 | qPCR       |  -0.8431039|  0.4848167| ALDH4A1::ILMN\_1696099 |
+| CKAP2L  | ILMN\_1751776 | Microarray |   1.2106958|  0.1647013| CKAP2L::ILMN\_1751776  |
+| CKAP2L  | ILMN\_1751776 | qPCR       |   1.0941976|  0.2285730| CKAP2L::ILMN\_1751776  |
+| CLCA2   | ILMN\_1803236 | Microarray |  -1.2488407|  0.2046290| CLCA2::ILMN\_1803236   |
+| CLCA2   | ILMN\_1803236 | qPCR       |  -0.9681039|  0.3435681| CLCA2::ILMN\_1803236   |
+| GALNS   | ILMN\_1737949 | Microarray |  -0.8756972|  0.1113025| GALNS::ILMN\_1737949   |
+| GALNS   | ILMN\_1737949 | qPCR       |  -0.4347706|  0.2874267| GALNS::ILMN\_1737949   |
+| ROCK1   | ILMN\_1808768 | Microarray |   0.7808615|  0.0735355| ROCK1::ILMN\_1808768   |
+| ROCK1   | ILMN\_1808768 | qPCR       |   0.8206860|  0.3403608| ROCK1::ILMN\_1808768   |
+| TPR     | ILMN\_1730999 | Microarray |   1.2190839|  0.1312655| TPR::ILMN\_1730999     |
+| TPR     | ILMN\_1730999 | qPCR       |   1.0850383|  0.3248168| TPR::ILMN\_1730999     |
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
