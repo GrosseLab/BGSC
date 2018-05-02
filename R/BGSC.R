@@ -262,26 +262,33 @@ minIndex <- function(x){
 #' @param IC is BIC or AIC 
 #' @return a \code{value}  
 #' @export
-InformationCriterion <- function(logL,npar,k , IC='BIC'){
+InformationCriterion <- function(logL,npar,k , IC = 'BIC'){
   
-  if(length(logL) != length(npar) || length(logL) != length(k)){
+  # x = the observed data;
+  # k = the number of data points in x, the number of observations, or equivalently, the sample size;
+  # npar = the number of free parameters to be estimated. 
+  # p(x|npar) = the probability of the observed data given the number of parameters; or, the likelihood of the parameters
+  # given the dataset;
+  # logL = log of the maximized value of the likelihood function for the estimated model.
+  
+  if (length(logL) != length(npar) || length(logL) != length(k)) {
     print('npar not for each class') 
-  }else{
-    if(IC=='AIC'){
+  } else {
+    if (IC == 'AIC') {
       #AIC== -2*loglikelihood + k*npar, npar represents the number of parameters in the fitted model, and k = 2 
       aic <- (-2)*logL + k*npar
       return(aic)
-    }else if(IC=='BIC'){
+    } else if (IC == 'BIC') {
       #BIC == AIC(object, ..., k = log(nobs(object)))
       
-      k=log(k) # k -> number of ovservations (6)
+      k <- log(k) # k -> number of ovservations (6)
       #npar represents the number of parameters
       
-      bic <- (-2)*logL + npar *k 
+      bic <- (-2)*logL + npar * k 
       #alternative
       #bic<- (-2)*logL + npar *(k+log(2*pi))
       return(bic)
-    }else{
+    } else {
       print(c(k,"<2 -- ERROR"))
     }
     
@@ -336,35 +343,39 @@ get.Posterior <- function(B, Pis= c(0.7,0.1,0.1,0.1) ) {
 #' @title get Results of Posterior data
 #' @description get the Genes assigned to the best class
 #' @author Claus Weinholdt
-#' @usage get.gene.classes(data, indexing="max",filter=0.75, DoPlot=FALSE)
+#' @usage get.gene.group(data, indexing="max",filter=0.75, DoPlot=FALSE)
 #' @param data is Posterior matrix
-#' @param indexing is the indexing method "max" or "min"
+#' @param indexing is the indexing method "maximal" or "minimal"
 #' @param filter for Posterior 
 #' @param DoPlot if TRUE plot histogram of Posterior
 #' @return a \code{list} of assigned genes
 #' @export
-get.gene.classes <- function(data, indexing="max", filter=0.75, DoPlot=FALSE){
+get.gene.group <- function(data, indexing="maximal", filter=0.75, DoPlot=FALSE){
   
   Ind <- switch(indexing, 
-                "max" =  apply(data,MARGIN=1,FUN=maxIndex),
-                "min" =  apply(data,MARGIN=1,FUN=minIndex)
+                "maximal" =  apply(data,MARGIN=1,FUN=maxIndex),
+                "minimal" =  apply(data,MARGIN=1,FUN=minIndex)
                 )
-  for(i in min(Ind):max(Ind) ) Ind[Ind==i]  <- colnames(data)[i]
+  for(i in min(Ind):max(Ind) ) Ind[Ind == i]  <- colnames(data)[i]
   
-  res <- lapply(colnames(data),function(x) { data[names(Ind)[Ind==x],]  })
+  res <- lapply(colnames(data),function(x) { data[names(Ind)[Ind == x],]  })
   names(res) <- colnames(data)
 
-  resFilter <- lapply(names(res) , function(x) res[[x]][ res[[x]][,x]>=filter ,  ])  
+  resFilter <- lapply(names(res) , function(x) res[[x]][ res[[x]][,x] >= filter ,  ])  
   names(resFilter) <- colnames(data)
   
   if(DoPlot){
+    print("Histograms of approximate posterior")
     par(mfrow=c(2,2))
-    for(i in names(res)) {hist(res[[i]][,i],50,main = i,xlab = "") ; abline(v=filter,col=2)}
+    for(i in names(res)) { hist(res[[i]][,i],50,main = paste0('group ',i),xlab = "approximate posterior") ; abline(v = filter,col = 2)}
     par(mfrow=c(1,1))
   }
-  print(rbind("ALL"=sapply(res, nrow),"Filter"=sapply(resFilter, nrow) ))
+  tmp <- rbind("#genes assigned to group" = sapply(res, nrow),"Filter" = sapply(resFilter, nrow) )
+  rownames(tmp)[2] <- paste0("#genes assigned to group with Filter",filter)  
+  print(paste0('Number of genes assigned to group with the ',indexing,' approximate posterior'))
+  print(tmp)
   
-  return(list("res"=res,"resFilter"=resFilter))
+  return(list("res" = res,"resFilter" = resFilter))
 }
 
 # ----------------------------------------------------------------------
@@ -773,7 +784,7 @@ PIS_Study <- function(){
   PostClassPis  <- lapply(PIS, function(Pis){  
     tmp <- get.Posterior( normDataBIC ,Pis) 
     print(Pis)
-    get.gene.classes(data=tmp,indexing="max",filter=0.75, DoPlot=TRUE) 
+    get.gene.group(data=tmp,indexing="max",filter=0.75, DoPlot=TRUE) 
   })
   
 }

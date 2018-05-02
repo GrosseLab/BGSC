@@ -4,6 +4,7 @@ main <- function(){
   library(gridExtra)
   library(grid)
   library(gtable)
+  library(BGSC)
   
   ### normalize Data ----------------------------------------------------------------------
     normData <- normalizeExpData()
@@ -19,20 +20,29 @@ main <- function(){
     
     normDataLogLik <- logLikelihoodOfnormData(normData$E)
     
+    TPRid = 'ILMN_1730999'
+    exp(normDataLogLik[TPRid,]) 
+  
+    
+    
   ### calulate BIC from logLik  ----------------------------------------------------------------------
     npar <- sapply(Lsets, function(x) sum(!sapply(x,is.null ) )) + 1  ## number parapeters for LogLilk -> mean + var 
     k <-  sapply(Lsets, function(x) sum( sapply(x,length) ))
     normDataBIC <- get.IC(normDataLogLik , npar, k , IC = 'BIC')
     BICminInd <- apply( normDataBIC,MARGIN = 1, FUN = minIndex)
     print(table(BICminInd))
-  
+    
+    normDataBIC[TPRid,]
+    exp(normDataLogLik[TPRid,]) / ( sqrt(6)^npar )
+    
   ### calulate Posterior from BIC ----------------------------------------------------------------------
     normDataPosterior <- get.Posterior( normDataBIC ,Pis = c(0.7,0.1,0.1,0.1))
     POSTmaxInd <- apply(normDataPosterior, MARGIN = 1 ,FUN = maxIndex)
     print(table(POSTmaxInd))
     
-    PostClass <- get.gene.classes(data = normDataPosterior,indexing = "max",filter = 0.75, DoPlot = TRUE)
-  
+    PostClass <- get.gene.group(data = normDataPosterior,indexing = "maximal",filter = 0.75, DoPlot = TRUE)
+    normDataPosterior[TPRid,]
+    
   ### compare to qPCR ----------------------------------------------------------------------
     MeanFoldChangeClass <- get.log2Mean.and.log2FC(normData = normData)
     qCPRdataC <- getQPCR()
@@ -43,6 +53,10 @@ main <- function(){
     qgenesIDs <- lapply(qCPRdataC$rn, function(qg) as.character(IDs.dt.c[qg,][['rn']]) )
     names(qgenesIDs) <- qCPRdataC$rn
   
+    hist(MeanFoldChangeClass$c$s1s0FC,50);abline(v=c(0.5,-.5))
+    
+    MeanFoldChangeClass$c[abs(MeanFoldChangeClass$c$s1s0FC) > 0.5,]
+    
   ### bar log2 FC qPCR Illumina  ----------------------------------------------------------------------
     PlotDataFC <- make.plot.data.FC.Ill.qPCR(qCPRdata = qCPRdataC, MeanFoldChangeClass, class="c" )
     
