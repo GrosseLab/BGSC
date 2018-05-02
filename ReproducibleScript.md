@@ -9,7 +9,7 @@ Weinholdt Claus
   pdf_document:
     toc: true
     highlight: zenburn -->
-Weinholdt et. al **Analysis of genes regulated by isoforms of the epidermal growth factor receptor in a glioblastoma cell line**
+Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse **Analysis of genes regulated by isoforms of the epidermal growth factor receptor in a glioblastoma cell line**
 
 Contents
 --------
@@ -22,7 +22,7 @@ Contents
         -   [Schematic Expression Pattern](#SchematicE)
     -   [Calculating the log likelihood for each gene in each group](#CalculatingLik)
     -   [Calculating Bayesian Information Criterion of the log likelihood](#BIC)
-    -   [Posterior approximation by the Bayesian Information Criterion](#Posterior)
+    -   [Approximating posterior by the Bayesian Information Criterion](#Posterior)
 -   [Identification of genes belonging to group c](#Comapre)
     -   [Examples for group c](#GrC)
     -   [Fold changes plot of Illumina data vs RT-qPCR](#FCplot)
@@ -99,13 +99,20 @@ grid.arrange( tmpPlot$a + theme(legend.position = "none"),
 
 ### <a name="BIC""></a> Calculating Bayesian Information Criterion of the log likelihood
 
-Performing classification through model selection based on minium log likelihood is problematic when the number of free model parameters is not identical among all models under comparison. In the present work, model *a* has two free model parameters, while models *b*, *c*, and *d* have three. Hence, a naive classification based on a minium log likelihood criterion would give a spurious advantage to models *b*, *c*, and *d* with three free model parameters over model *a* with only two parameters. In order to eliminate that spurious advantage, we compute marginal likelihoods *p*(*x*|*z*) using the approximation of Schwarz et al. commonly referred to as Bayesian Information Criterion.
+Performing classification through model selection based on minimum log likelihood is problematic when the number of free model parameters is not identical among all models under comparison. In the present work, model *a* has two free model parameters, while models *b*, *c*, and *d* have three. Hence, a naive classification based on a minimum log likelihood criterion would give a spurious advantage to models *b*, *c*, and *d* with three free model parameters over model *a* with only two parameters. In order to eliminate that spurious advantage, we compute marginal likelihoods *p*(*x*|*z*) using the approximation of Schwarz et al. commonly referred to as Bayesian Information Criterion.
 
 ``` r
-npar <- sapply(Lsets, function(x) sum(!sapply(x,is.null ) )) + 1  ## number parapeters for LogLilk -> mean + var 
-k <-  sapply(Lsets, function(x) sum( sapply(x,length) ))
+npar <- sapply(Lsets, function(x) sum(!sapply(x,is.null ) )) + 1  ## number parameters for log likelihood -> mean + var 
+k <-  sapply(Lsets, function(x) sum( sapply(x,length) )) ## number of samples
+print(rbind(npar,k))
+```
+
+    ##      a b c d
+    ## npar 2 3 3 3
+    ## k    6 6 6 6
+
+``` r
 normDataBIC <- get.IC(normDataLogLik , npar, k , IC = 'BIC')
-BICminInd <- apply( normDataBIC,MARGIN = 1, FUN = minIndex)
 ```
 
     ## [1] "Number of genes assigned to group with the minimal Bayesian Information Criterion"
@@ -113,7 +120,7 @@ BICminInd <- apply( normDataBIC,MARGIN = 1, FUN = minIndex)
     ##                             a    b    c    d
     ## #genes assigned to group 3446 5646 5015 2635
 
-### <a name="Posterior""></a> Posterior approximation by the Bayesian Information Criterion
+### <a name="Posterior""></a> Approximating posterior by the Bayesian Information Criterion
 
 We assume that 70% of all genes are not regulated by EGF, so we define the prior probability for group a by *p*(*a*)=0.70, and we further assume that the remaining 30% of the genes fall equally in groups with EGF-regulation, so we define the prior probabilities for groups *b*, *c*, and *d* by *p*(*b*)=*p*(*c*)=*p*(*d*)=0.1. We can computed for *z* ∈ {*a*, *b*, *c*, *d*} the posterior *p*(*z*|*x*)≈*p*(*x*|*z*)⋅*p*(*z*) and then performed Bayesian model selection by assigning each gene to that group *z* with the maximum approximate posterior *p*(*z*|*x*).
 
@@ -139,7 +146,7 @@ Genes of group *c* are putative target genes regulated by EGFR isoforms and not 
 
 ### <a name="GrC"></a> Examples for group c
 
-After calculating the log2-fold change for group *c* by $\\hat{\\mu}\_{c1} - \\hat{\\mu}\_{c0}$, we choose three up regulated genes, namely CKAP2L, ROCK1, and TPR and three down regulated genes, namely ALDH4A1, CLCA2, and GALNS.
+After calculating the log2-fold change for group *c* by *μ*<sub>*c*1</sub> - $\\hat{\\mu}\_{c0}$, we validated three up regulated genes, namely CKAP2L, ROCK1, and TPR and three down regulated genes, namely ALDH4A1, CLCA2, and GALNS.
 
 ``` r
     ### calculating mean and log2-fold change
@@ -148,7 +155,7 @@ After calculating the log2-fold change for group *c* by $\\hat{\\mu}\_{c1} - \\h
     ### load qPCR data
     qCPRdataC <- getQPCR()
     
-    ### annoation of gene examples
+    ### annotation of gene examples
     IDs.dt <- data.table::data.table(normData$genes,keep.rownames = T,key = 'rn')
     IDs.dt.c <- IDs.dt[rownames(PostClass$resFilter$c),]
     data.table::setkey(IDs.dt.c,'SYMBOL')
@@ -230,4 +237,4 @@ We have found that the six log<sub>2</sub>-fold changes of the Illumina microarr
 | GALNS   | Microarray |  -0.88|    0.11|
 | GALNS   | qPCR       |  -0.43|    0.29|
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+<!--  Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot. -->
