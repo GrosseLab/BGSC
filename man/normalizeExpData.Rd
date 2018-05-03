@@ -4,7 +4,7 @@
 \alias{normalizeExpData}
 \title{normalize ExpData}
 \usage{
-normalizeExpData(pval)
+normalizeExpData(DetectionPval = 0.05 , DetectionPvalNumber = "ALL")
 }
 \arguments{
 \item{DetectionPval}{is the dectecion p value ot the Illumina BeatChip}

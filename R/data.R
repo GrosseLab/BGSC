@@ -14,30 +14,20 @@
 #' 
 "ExpData"
 
-#' Expression data set of all qPCRs
-#'
-#' A dataset containing the
-#' 
-#' @format A data frame with 27416 rows and 82 variables:
-#' \describe{
-#'   \item{0A Intact}{length normed counts}
-#'   \item{0B Intact}{length normed counts}
-#'   ...
-#'   \item{240B Grafted top}{length normed counts}
-#' }
-#' 
-"RawQPCR"
 
 #' Expression data set of all qPCRs
 #'
 #' A dataset containing the
 #' 
-#' @format A data frame with 27416 rows and 82 variables:
+#' @format A data frame with 30 rows and 14 variables:
 #' \describe{
-#'   \item{0A Intact}{length normed counts}
-#'   \item{0B Intact}{length normed counts}
+#'   \item{Probe}{Name of celline}
+#'   \item{NR}{Sample number}
+#'   \item{CKAP2L_ctGen.ctRef}{deltaCt of CKAP2L}
+#'   \item{CKAP2L_relative.Werte}{relativ expression of CKAP2L}
 #'   ...
-#'   \item{240B Grafted top}{length normed counts}
+#'   \item{GALNSctGen.ctRef}{deltaCt of GALNS}
+#'   \item{GALNSrelative.Werte}{relativ expression of GALNS}
 #' }
 #' 
 "RawQPCRsf"

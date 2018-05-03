@@ -1,7 +1,7 @@
 Reproducible script for the publication
 ================
 Weinholdt Claus
-2018-24-4
+2018-05-03
 
 <!--   html_document:
     toc: true
@@ -78,7 +78,10 @@ For group *a* we assume that all six expression levels stem from the same Gaussi
 
 ``` r
 Lsets <- get.Lset()
-normDataLogLik <- logLikelihoodOfnormData(normData$E)
+normDataLogLikData <- logLikelihoodOfnormData(normData$E)
+normDataLogLik <- normDataLogLikData[['logL']]
+ALL.MUs  <- normDataLogLikData[['ALL.MUs']]
+ALL.VARs <- normDataLogLikData[['ALL.VARs']]
 ```
 
 #### <a name="ProbabilityDens""></a> Probability density plots of the Gaussian distributions
@@ -88,7 +91,7 @@ To gain a better understanding we show as example for each group a gene having t
 ``` r
 GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
 names(GeneExample) <- c('a','b','c','d')
-tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData,useGroup = .y ,DOplot = FALSE) )
+tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData, ALL.MUs, ALL.VARs, useGroup = .y ,DOplot = FALSE) )
 grid.arrange( tmpPlot$a + theme(legend.position = "none"),
               tmpPlot$b + theme(legend.position = "none"),
               tmpPlot$c + theme(legend.position = "none"),
@@ -146,7 +149,7 @@ Genes of group *c* are putative target genes regulated by EGFR isoforms and not 
 
 ### <a name="GrC"></a> Examples for group c
 
-After calculating the log2-fold change for group *c* by *μ*<sub>*c*1</sub> - $\\hat{\\mu}\_{c0}$, we validated three up regulated genes, namely CKAP2L, ROCK1, and TPR and three down regulated genes, namely ALDH4A1, CLCA2, and GALNS.
+After calculating the log2-fold change for group *c* by *μ*<sub>*c*1</sub> - *μ*<sub>*c*0</sub>, we validated three up regulated genes, namely CKAP2L, ROCK1, and TPR and three down regulated genes, namely ALDH4A1, CLCA2, and GALNS.
 
 ``` r
     ### calculating mean and log2-fold change

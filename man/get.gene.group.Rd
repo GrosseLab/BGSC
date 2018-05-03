@@ -4,7 +4,7 @@
 \alias{get.gene.group}
 \title{get Results of Posterior data}
 \usage{
-get.gene.group(data, indexing="max",filter=0.75, DoPlot=FALSE)
+get.gene.group(data, indexing="maximal",filter=0.75, DoPlot=FALSE)
 }
 \arguments{
 \item{data}{is Posterior matrix}

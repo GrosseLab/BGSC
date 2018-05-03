@@ -18,7 +18,10 @@ main <- function(){
     })
     pheatmap::pheatmap(t(do.call(rbind, IndicatorVar)),cluster_rows = F,cluster_cols = F)
     
-    normDataLogLik <- logLikelihoodOfnormData(normData$E)
+    normDataLogLikData <- logLikelihoodOfnormData(normData$E)
+    normDataLogLik <- normDataLogLikData[['logL']]
+    ALL.MUs  <- normDataLogLikData[['ALL.MUs']]
+    ALL.VARs <- normDataLogLikData[['ALL.VARs']]
     
     TPRid = 'ILMN_1730999'
     exp(normDataLogLik[TPRid,]) 
@@ -58,7 +61,7 @@ main <- function(){
     MeanFoldChangeClass$c[abs(MeanFoldChangeClass$c$s1s0FC) > 0.5,]
     
   ### bar log2 FC qPCR Illumina  ----------------------------------------------------------------------
-    PlotDataFC <- make.plot.data.FC.Ill.qPCR(qCPRdata = qCPRdataC, MeanFoldChangeClass, class="c" )
+    PlotDataFC <- make.plot.data.FC.Ill.qPCR(qCPRdata = qCPRdataC, qgenesIDs = qgenesIDs, MeanFoldChangeClass, class="c" )
     
     cor.test( PlotDataFC[PlotDataFC$Set=='Microarray','FC'],PlotDataFC[PlotDataFC$Set=='qPCR','FC'] ) 
     
@@ -213,24 +216,24 @@ main <- function(){
 
       GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
       names(GeneExample) <- c('a','b','c','d')
-      tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData,useGroup = .y ,DOplot = FALSE) )
+      tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData, ALL.MUs, ALL.VARs, useGroup = .y ,DOplot = FALSE) )
       grid.arrange(tmpPlot$a + theme(legend.position = "none"),
                    tmpPlot$b + theme(legend.position = "none"),
                    tmpPlot$c + theme(legend.position = "none"),
                    tmpPlot$d + theme(legend.position = "none") ,ncol=2,nrow=2)
       
       
-      Density.NV.fit.plot(id = 'ILMN_1730999' ,normData,useGroup = 'c' ,DOplot = FALSE,basesize = 20,GrAblack = TRUE,onlySYMBOL = TRUE )
+      Density.NV.fit.plot(id = 'ILMN_1730999' ,normData, ALL.MUs, ALL.VARs,useGroup = 'c' ,DOplot = FALSE,basesize = 20,GrAblack = TRUE,onlySYMBOL = TRUE )
       ggsave("/Users/weinhol/GitHub/BGSC/PaperPlot/DensityPlot_TPR.pdf",device = 'pdf',width = 10,height = 6)
       
       
       # id <- "ILMN_1730999"
       # tmpDensity <- lapply(qgenesIDs, function(id) Density.NV.fit.plot(id = id,normData,DOplot = TRUE) )
       # 
-      # aaa <- Density.NV.fit.plot(id = 'ILMN_1687840',normData,useGroup = "a",DOplot = TRUE)
-      # bbb <- Density.NV.fit.plot(id = 'ILMN_1684585',normData,useGroup = "b",DOplot = TRUE)
-      # ccc <- Density.NV.fit.plot(id = 'ILMN_1730999',normData,useGroup = "c",DOplot = TRUE)
-      # ddd <- Density.NV.fit.plot(id = 'ILMN_2320964',normData,useGroup = "d",DOplot = TRUE)
+      # aaa <- Density.NV.fit.plot(id = 'ILMN_1687840',normData, ALL.MUs, ALL.VARs,useGroup = "a",DOplot = TRUE)
+      # bbb <- Density.NV.fit.plot(id = 'ILMN_1684585',normData, ALL.MUs, ALL.VARs, useGroup = "b",DOplot = TRUE)
+      # ccc <- Density.NV.fit.plot(id = 'ILMN_1730999',normData, ALL.MUs, ALL.VARs, useGroup = "c",DOplot = TRUE)
+      # ddd <- Density.NV.fit.plot(id = 'ILMN_2320964',normData, ALL.MUs, ALL.VARs, useGroup = "d",DOplot = TRUE)
       # 
       
       head(PostClass$resFilter$d,20)

@@ -10,7 +10,7 @@ logLikelihoodOfnormData(x)
 \item{x}{is maxtrix with normalized expression e.g. normData$E}
 }
 \value{
-a \code{matrix} with log likelihoods
+a \code{list} with log likelihoods , all means and all variances
 }
 \description{
 calucate the the log likelihood for each class for each gene

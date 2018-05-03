@@ -85,7 +85,8 @@ getQPCR <- function(){
 #' @title normalize ExpData
 #' @description .AAA
 #' @author Claus Weinholdt
-#' @usage normalizeExpData(pval)
+#' @usage normalizeExpData(DetectionPval = 0.05 , DetectionPvalNumber = "ALL")
+#' @aliases normalizeExpData
 #' @param DetectionPval is the dectecion p value ot the Illumina BeatChip
 #' @param DetectionPvalNumber miniml number of samples with DetectionPval. If DetectionPvalNumber is "ALL" then DetectionPvalNumber equal to the number of samples
 #' @return a \code{limma object} 
@@ -192,17 +193,13 @@ get.Lset <- function(){
 #' @author Claus Weinholdt
 #' @usage logLikelihoodOfnormData(x)
 #' @param x is maxtrix with normalized expression e.g. normData$E
-#' @return a \code{matrix} with log likelihoods 
+#' @return a \code{list} with log likelihoods , all means and all variances 
 #' @export
 logLikelihoodOfnormData <- function(x){  # with var-estimator
 
   Lsets <- get.Lset()
   
-  ### init global varibales 
-  ALL.MUs  <<- c()
-  ALL.VARs <<- c()
-  
-  logL <- t(apply(x,1,function(d){
+  tmpRes <- apply(x,1,function(d){
     res <- lapply(Lsets , function(Lset){ 
       LsetN <- sapply(Lset,length )
       LsetMean <- sapply(Lset,function(x) mean(d[x],na.rm = T)  )  #;if(is.nan(LsetMean['s1'])){ print("A")}
@@ -211,21 +208,26 @@ logLikelihoodOfnormData <- function(x){  # with var-estimator
       return(list("N" = LsetN , 'Mean' = LsetMean, "Var" = LsetVar , "logL" = LsetlogL))
     })
     
-    ALL.MUs <<- rbind( ALL.MUs, as.vector(sapply(res,function(x) x$Mean)) )
-    ALL.VARs <<- rbind( ALL.VARs, as.vector(sapply(res,function(x) x$Var)) )
-    
-    return( sapply(res,function(x) x$logL))
-  }))
+    ALL.MUs <- as.vector(sapply(res,function(x) x$Mean)) 
+    ALL.VARs <- as.vector(sapply(res,function(x) x$Var)) 
+    logL <-  as.vector(sapply(res,function(x) x$logL ))
+           
+    return( list("logL" = logL,"ALL.MUs" = ALL.MUs, "ALL.VARs" = ALL.VARs) )
+  })
   
-  dimnames( ALL.MUs ) <<- list(rownames(x),paste0(rep(names(Lsets),each=2),c('0','1')))
-  dimnames( ALL.VARs ) <<- list(rownames(x),names(Lsets))
+  logL <- do.call(rbind,lapply(tmpRes,function(x) x[["logL"]]) )
+  ALL.MUs <- do.call(rbind,lapply(tmpRes,function(x) x[["ALL.MUs"]]) )
+  ALL.VARs <- do.call(rbind,lapply(tmpRes,function(x) x[["ALL.VARs"]]) )
   
-  # rownames(ALL.MUs) <- rownames(normData$E)
-  # colnames(ALL.MUs) <- c('a0','a1','b0','b1','c0','c1','d0','d1')
-  # rownames(ALL.VARs) <- rownames(normData$E)
-  # colnames(ALL.VARs) <- c('a','b','c','d')
+  colnames( logL ) <- names(Lsets)
+  colnames( ALL.MUs ) <-  paste0(rep(names(Lsets),each = 2),c('0','1'))
+  colnames( ALL.VARs ) <- names(Lsets)
   
-  return(logL)
+  # print(data.table::data.table(logL,keep.rownames = T))
+  # print(data.table::data.table(ALL.MUs,keep.rownames = T))
+  # print(data.table::data.table(ALL.VARs,keep.rownames = T))
+   
+  return(list("logL" = logL,"ALL.MUs" = ALL.MUs, "ALL.VARs" = ALL.VARs) )
 }
 
 # ----------------------------------------------------------------------
@@ -236,7 +238,7 @@ logLikelihoodOfnormData <- function(x){  # with var-estimator
 #' @param x is a vector
 #' @return a \code{value}  
 #' @export
-maxIndex<-function(x){
+maxIndex <- function(x){
   return(which(x == max(x)))
 }
 
@@ -343,11 +345,12 @@ get.Posterior <- function(B, Pis= c(0.7,0.1,0.1,0.1) ) {
 #' @title get Results of Posterior data
 #' @description get the Genes assigned to the best class
 #' @author Claus Weinholdt
-#' @usage get.gene.group(data, indexing="max",filter=0.75, DoPlot=FALSE)
+#' @usage get.gene.group(data, indexing="maximal",filter=0.75, DoPlot=FALSE)
 #' @param data is Posterior matrix
 #' @param indexing is the indexing method "maximal" or "minimal"
 #' @param filter for Posterior 
 #' @param DoPlot if TRUE plot histogram of Posterior
+#' @import graphics
 #' @return a \code{list} of assigned genes
 #' @export
 get.gene.group <- function(data, indexing="maximal", filter=0.75, DoPlot=FALSE){
@@ -394,7 +397,7 @@ get.log2Mean.and.log2FC <- function(normData) {
   resOut <- purrr::map2(Lset,names(Lset), 
               function(set, setN){
                 
-                tmp.dt <- data.table()
+                tmp.dt <- data.table::data.table()
                 s0 <- set$s0
                 s1 <- set$s1
                 
@@ -412,8 +415,8 @@ get.log2Mean.and.log2FC <- function(normData) {
                     # https://www.researchgate.net/post/Can_anyone_help_with_calculating_error_in_RT-qPCRs_fold-change_data
                     s0s1stderr = sqrt( s1stderr^2 +  s0stderr^2)
                     
-                    tmp.dt <- data.table("rn" = names(s1M), s1M , s0M , s1s0FC , s1stderr, s0stderr,s0s1stderr)                      
-                    setkey(tmp.dt,'rn')
+                    tmp.dt <- data.table::data.table("rn" = names(s1M), s1M , s0M , s1s0FC , s1stderr, s0stderr, s0s1stderr)                      
+                    data.table::setkey(tmp.dt,'rn')
                     
                   } else if ( (length(s0) == 1 & length(s1) > 1) ) {
                     
@@ -421,8 +424,8 @@ get.log2Mean.and.log2FC <- function(normData) {
                     s0M <- normData$E[,s0]
                     s1s0FC <- s1M - s0M
                     
-                    tmp.dt <- data.table("rn" = names(s1M), s1M , s0M , s1s0FC)                  
-                    setkey(tmp.dt,'rn')
+                    tmp.dt <- data.table::data.table("rn" = names(s1M), s1M , s0M , s1s0FC)                  
+                    data.table::setkey(tmp.dt,'rn')
                     
                   } else if ( (length(s1) == 1 & length(s0) > 1) ) { 
                     
@@ -430,16 +433,16 @@ get.log2Mean.and.log2FC <- function(normData) {
                     s0M <- rowMeans( normData$E[,s0]) 
                     s1s0FC <- s1M - s0M
                     
-                    tmp.dt <- data.table("rn" = names(s1M), s1M , s0M , s1s0FC)                    
-                    setkey(tmp.dt,'rn')
+                    tmp.dt <- data.table::data.table("rn" = names(s1M), s1M , s0M , s1s0FC)                    
+                    data.table::setkey(tmp.dt,'rn')
                     
                   }
                   
                 } else {
                   s0M <- rowMeans( normData$E[,s0]) 
                   
-                  tmp.dt <- data.table("rn" = names(s0M) , s0M )                    
-                  setkey(tmp.dt,'rn')
+                  tmp.dt <- data.table::data.table("rn" = names(s0M) , s0M )                    
+                  data.table::setkey(tmp.dt,'rn')
                 }
                 
                 return(tmp.dt)
@@ -468,18 +471,19 @@ get.log2Mean.and.log2FC <- function(normData) {
 #' @title Density plot for NV fit 
 #' @description Density plot for NV fit 
 #' @author Claus Weinholdt
-#' @usage Density.NV.fit.plot(id, normData, useGroup = NA, DOplot = FALSE,basesize = 14, GrAblack = TRUE , onlySYMBOL = FALSE)
 #' @param id is a Illuminan id
 #' @param normData is the normData data object
+#' @param ALL.MUs matrix with all means from logLikelihoodOfnormData()
+#' @param ALL.VARs matrix with all variances from logLikelihoodOfnormData()
 #' @param useGroup if set to a group (eg. "a","b","c" or "d") the row is colored
 #' @param DOplot if TRUE plot is printed
 #' @param basesize size of font
 #' @param GrAblack if TRUE coloring group 'a' in black because we do not use a Indicator variable
 #' @param onlySYMBOL if TRUE title is only gene SYMBOL
 #' @return a \code{list} with mean , std.err , log2FC and std.err of log2FC 
-#' @import ggplot2 gridExtra grid
+#' @import ggplot2 gridExtra grid stats
 #' @export
-Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE,basesize = 14, GrAblack = TRUE , onlySYMBOL = FALSE ){
+Density.NV.fit.plot <- function(id, normData, ALL.MUs, ALL.VARs, useGroup = NA, DOplot = FALSE, basesize = 14, GrAblack = TRUE , onlySYMBOL = FALSE ){
   Lset <- get.Lset()
   indicatorTMP <- lapply(Lset,function(x){
     vec <- rep(0,6);names(vec) <- c(1:6)
@@ -551,7 +555,7 @@ Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE,base
     labstitle=paste0(id,' -- ',IDs.dt[id,][['SYMBOL']])
   }  
   
-  g2 = ggplot(tmp, aes(x=logE,y=density,colour=indicator)) +
+  g2 = ggplot(tmp, aes(x = logE,y = density,colour = indicator)) +
     scale_y_continuous(limits = c(-0.5, dM),breaks = seq(0,dM,1)) +
     # scale_x_continuous(limits = c(4.5, 15),breaks = seq(4.5,15,1)) +
     scale_x_continuous(limits = Lims ,breaks = seq(Lims[1],Lims[2],1)) +
@@ -560,12 +564,12 @@ Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE,base
     scale_color_manual(values = col2 , name = "Indicator variable", labels = list("g = 0", "g = 1" )) +
     labs(title = labstitle ,y = "Density", x = "Logarithmic expression levels") +
     .thememap(base_size = basesize,0.6) +
-    theme(legend.background = element_rect(fill="grey90", size=.5, linetype="dotted"))+
-    theme(legend.position="bottom") 
+    theme(legend.background = element_rect(fill = "grey90", size=.5, linetype = "dotted")) +
+    theme(legend.position = "bottom") 
   
   if (!is.na(useGroup)) {
     bestSet <- subset(tmp, group == useGroup)
-    g2 <- g2 + geom_rect(data=bestSet, aes(xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf), colour = NA , fill = "yellow", alpha = .01)
+    g2 <- g2 + geom_rect(data = bestSet, aes(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf), colour = NA , fill = "yellow", alpha = .01)
   }
   
   g3 <- g2 + 
@@ -604,19 +608,20 @@ Density.NV.fit.plot <- function(id, normData, useGroup = NA, DOplot = FALSE,base
 #' @description make.plot.data.FC.Ill.qPCR
 #' @author Claus Weinholdt
 #' @param qCPRdata is data.table with qPCR data
+#' @param qgenesIDs Ids of qCPR genes
 #' @param MeanFoldChangeClass is data.table with Illumina data
 #' @param class for the plots 
 #' @return a \code{data.frame} as plot input 
 #' @export
-make.plot.data.FC.Ill.qPCR <- function(qCPRdata,MeanFoldChangeClass, class="c"){
+make.plot.data.FC.Ill.qPCR <- function(qCPRdata, qgenesIDs ,MeanFoldChangeClass, class = "c"){
   TMP <- data.frame()
   for (tmpG in qCPRdata$rn  ) {
     expC <- MeanFoldChangeClass[[class]][qgenesIDs[[tmpG]], ]
     TMPexp <- data.frame( "Gene" = tmpG,
                           "ExpID" = expC$rn,
                           # "Set"="Illumina",
-                          "Set"="Microarray",
-                          "FC" =expC[["s1s0FC"]] ,
+                          "Set" = "Microarray",
+                          "FC" = expC[["s1s0FC"]] ,
                           "stderr" = expC[["s0s1stderr"]]
     )
     
@@ -634,7 +639,6 @@ make.plot.data.FC.Ill.qPCR <- function(qCPRdata,MeanFoldChangeClass, class="c"){
       TMP <- rbind(TMP , rbind(TMPexp[i, ],tmp[,  colnames(TMPexp) ]))
     }
   }  
-  # TMP <- TMP[ TMP$Gene != 'KIF5C',]
   TMP$pid <- paste0(TMP$Gene,'::',TMP$ExpID)
   TMP$pid <- factor(TMP$pid)
   return(TMP)
@@ -816,13 +820,12 @@ makExpData <- function() {
 }
 
 # ----------------------------------------------------------------------
+#' @import utils
 makeQPCR <- function(){
-  wd2 <- "/Volumes/ianvsITZroot/home/adsvy/Kappler/Kappler_Wichmann_Medizin/Auswertung/"
-  RawQPCR <- read.csv(paste(sep="",wd2,"/qPCR/MyData.csv"))
-  setwd('/Users/weinhol/GitHub/BGSC')
-  devtools::use_data(RawQPCR)
+  RawQPCR <- read.csv(system.file("extdata", "RawQPCR.csv", package = "BGSC"),sep = ';')
+  # setwd('/Users/weinhol/GitHub/BGSC')
+  # devtools::use_data(RawQPCR)
   
-  # qgenes<-c("TPR","CKAP2L","KIF5C","ROCK1","BPNT1","GALNS","GLIPR2","KEL","ALDH4A1","CDCP1","CLCA2")
   qgenes<-c("CKAP2L", "ROCK1", "TPR","ALDH4A1", "CLCA2","GALNS") 
   RawQPCR.paper <- RawQPCR[,c(colnames(RawQPCR)[1:2],as.vector(sapply(qgenes,function(x) colnames(RawQPCR)[grepl(x,toupper(colnames(RawQPCR)))] )))]
   RawQPCRsf <- RawQPCR.paper[ RawQPCR.paper$Probe == 'SF',]

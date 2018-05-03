@@ -4,12 +4,17 @@
 \alias{Density.NV.fit.plot}
 \title{Density plot for NV fit}
 \usage{
-Density.NV.fit.plot(id, normData, useGroup = NA, DOplot = FALSE,basesize = 14, GrAblack = TRUE , onlySYMBOL = FALSE)
+Density.NV.fit.plot(id, normData, ALL.MUs, ALL.VARs, useGroup = NA,
+  DOplot = FALSE, basesize = 14, GrAblack = TRUE, onlySYMBOL = FALSE)
 }
 \arguments{
 \item{id}{is a Illuminan id}
 
 \item{normData}{is the normData data object}
+
+\item{ALL.MUs}{matrix with all means from logLikelihoodOfnormData()}
+
+\item{ALL.VARs}{matrix with all variances from logLikelihoodOfnormData()}
 
 \item{useGroup}{if set to a group (eg. "a","b","c" or "d") the row is colored}
 

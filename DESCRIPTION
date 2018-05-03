@@ -1,8 +1,8 @@
 Package: BGSC
-Title: Two-step Bayesian gene selection criterion (BGSC) approach
-Version: 0.0.0.9000
-Authors@R: person("First", "Last", email = "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+Title: Bayesian gene selection criterion (BGSC) approach
+Version: 0.0.1.0
+Authors@R: person("Claus", "Weinholdt", email = "claus.weinholdt@informatik.uni-halle.de", role = c("aut", "cre"))
+Description: Package for reproducing the results of the publication: Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse "Analysis of genes regulated by isoforms of the epidermal growth factor receptor in a glioblastoma cell line"
 Depends:
     R (>= 3.1.1),
     data.table (>= 1.9.4),
@@ -19,7 +19,8 @@ Imports:
     purrr,
     ggplot2,
     gridExtra,
-    grid
+    grid,
+    RColorBrewer
 Suggests: 
     knitr (>= 1.6),
     rmarkdown (>= 0.3.3),

@@ -1,7 +1,7 @@
 ---
 title: "Reproducible script for the publication"
 author: "Weinholdt Claus"
-date: "2018-24-4"
+date: "2018-05-03"
 output: github_document 
 ---
 
@@ -126,7 +126,10 @@ For group $a$ we assume that all six expression levels stem from the same Gaussi
 
 ```{r logLik}
 Lsets <- get.Lset()
-normDataLogLik <- logLikelihoodOfnormData(normData$E)
+normDataLogLikData <- logLikelihoodOfnormData(normData$E)
+normDataLogLik <- normDataLogLikData[['logL']]
+ALL.MUs  <- normDataLogLikData[['ALL.MUs']]
+ALL.VARs <- normDataLogLikData[['ALL.VARs']]
 ```
 
 #### <a name="ProbabilityDens""></a> Probability density plots of the Gaussian distributions
@@ -135,7 +138,7 @@ At each plot we plot  the probability density of the Gaussian distribution for g
 ```{r Density, echo=TRUE, fig.height=9, fig.width=9}
 GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
 names(GeneExample) <- c('a','b','c','d')
-tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData,useGroup = .y ,DOplot = FALSE) )
+tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData, ALL.MUs, ALL.VARs, useGroup = .y ,DOplot = FALSE) )
 grid.arrange( tmpPlot$a + theme(legend.position = "none"),
               tmpPlot$b + theme(legend.position = "none"),
               tmpPlot$c + theme(legend.position = "none"),
@@ -174,7 +177,7 @@ PostClass <- get.gene.group(data = normDataPosterior,indexing = "maximal",filter
 Genes of group $c$ are putative target genes regulated by EGFR isoforms \mbox{II - IV} and not by other receptors.
 
 ### <a name="GrC"></a> Examples for group c
-After calculating the log2-fold change for group $c$ by $\mu_{c1}$ - $\hat{\mu}_{c0}$, we validated three up regulated genes, namely CKAP2L, ROCK1, and TPR and three down regulated genes, namely ALDH4A1, CLCA2, and GALNS.
+After calculating the log2-fold change for group $c$ by $\mu_{c1}$ - $\mu_{c0}$, we validated three up regulated genes, namely CKAP2L, ROCK1, and TPR and three down regulated genes, namely ALDH4A1, CLCA2, and GALNS.
 
 ```{r load qPCR}
     ### calculating mean and log2-fold change
@@ -298,9 +301,9 @@ We have found that the six $\log_2$-fold changes of the Illumina microarray expr
 
 ```{r barplot FC, echo=FALSE}
     ### bar log2 FC qPCR Illumina  ----------------------------------------------------------------------
-      PlotDataFC <- make.plot.data.FC.Ill.qPCR(qCPRdata = qCPRdataC, MeanFoldChangeClass, class="c" )
+      PlotDataFC <- make.plot.data.FC.Ill.qPCR(qCPRdata = qCPRdataC, qgenesIDs = qgenesIDs, MeanFoldChangeClass, class="c" )
       
-      print(cor.test( PlotDataFC[PlotDataFC$Set=='Microarray','FC'],PlotDataFC[PlotDataFC$Set=='qPCR','FC'] ))    
+      print(cor.test( PlotDataFC[PlotDataFC$Set == 'Microarray','FC'],PlotDataFC[PlotDataFC$Set == 'qPCR','FC'] ))    
   
       # print(PlotDataFC)
       
@@ -329,11 +332,5 @@ PlotDataFC.dt <- data.table(PlotDataFC)
 setkeyv(PlotDataFC.dt,c('Gene','Set'))
 knitr::kable(PlotDataFC.dt[ c('CKAP2L', 'ROCK1','TPR','ALDH4A1', 'CLCA2', 'GALNS'),.(Gene,Set,FC,stderr)], caption = "Table 1", row.names = F,digits = 2)
 ```
-
-
-
-
-
-
 
 <!--  Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot. -->
