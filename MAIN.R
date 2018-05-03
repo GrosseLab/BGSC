@@ -9,6 +9,7 @@ main <- function(){
   ### normalize Data ----------------------------------------------------------------------
     normData <- normalizeExpData()
     # normData <- normalizeExpData(DetectionPvalNumber = 1)
+   
   ### calulate logLik for class  Data ----------------------------------------------------------------------
     Lsets <- get.Lset()
     IndicatorVar <- lapply(Lsets,function(x){
