@@ -8,4 +8,4 @@ Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappl
 [Reproducible script for the publication](./ReproducibleScript.md)
 
 ### Paper Draft
-[publication pdf](./Analysis_of_genes_regulated_by_isoforms_of_the_epidermal_growth_factor_receptor_in_a_glioblastoma_cell_line (2).pdf)
+[publication pdf](./Analysis_of_genes_regulated_by_isoforms_of_the_epidermal_growth_factor_receptor_in_a_glioblastoma_cell_line.pdf)
