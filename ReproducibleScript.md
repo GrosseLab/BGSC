@@ -86,7 +86,7 @@ ALL.VARs <- normDataLogLikData[['ALL.VARs']]
 
 #### <a name="ProbabilityDens""></a> Probability density plots of the Gaussian distributions
 
-To gain a better understanding we show an example for each group a gene having the minimal log-likelihood. For groups a - d the examples are ABCB7, ACSL1, TPR, and ADAR, respectively. At each plot, we plot the probability density of the Gaussian distribution for the group *a* as black curve and mark the six log2-expression values with black circles. For groups b − d, we plot with red and blue curves the probability densities of the Gaussian distributions and mark the six log2-expression values with circles which are colored according to classes for class 0 in red and class 1 in blue.
+As an example, we show a gene having the minimal log-likelihood for each group. As an example, For the groups *a* − *d* the examples are ABCB7, ACSL1, TPR, and ADAR, respectively. At each graphic, we plot the probability density of the Gaussian distribution for the group *a* as black curve and mark the six log2-expression values with black circles. For groups *b* − *d*, we plot with red and blue curves the probability densities of the Gaussian distributions and mark the six log2-expression values with circles which are colored according to classes for class 0 in red and for class 1 in blue.
 
 ``` r
 GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
@@ -257,7 +257,7 @@ We have found that the six log<sub>2</sub>-fold changes of the Illumina microarr
     ## 
     ## other attached packages:
     ## [1] purrr_0.2.4         gtable_0.2.0        gridExtra_2.3      
-    ## [4] ggplot2_2.2.1       BGSC_0.0.1.0        limma_3.34.8       
+    ## [4] ggplot2_2.2.1       BGSC_0.0.1.1        limma_3.34.8       
     ## [7] data.table_1.10.4-3
     ## 
     ## loaded via a namespace (and not attached):
