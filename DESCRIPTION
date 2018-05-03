@@ -1,0 +1,33 @@
+Package: BGSC
+Title: Bayesian gene selection criterion (BGSC) approach
+Version: 0.0.1.0
+Authors@R: person("Claus", "Weinholdt", email = "claus.weinholdt@informatik.uni-halle.de", role = c("aut", "cre"))
+Description: Package for reproducing the results of the publication: Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse "Analysis of genes regulated by isoforms of the epidermal growth factor receptor in a glioblastoma cell line"
+Depends:
+    R (>= 3.1.1),
+    data.table (>= 1.9.4),
+    limma (>= 3.30.0)
+Imports:
+    Biostrings,
+    IRanges,
+    grDevices,
+    org.Hs.eg.db,
+    stringr,
+    gplots,
+    VennDiagram,
+    plotrix,
+    purrr,
+    ggplot2,
+    gridExtra,
+    grid,
+    RColorBrewer
+Suggests: 
+    knitr (>= 1.6),
+    rmarkdown (>= 0.3.3),
+    devtools (>= 1.6.1),
+    testthat
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+VignetteBuilder: knitr
+RoxygenNote: 6.0.1

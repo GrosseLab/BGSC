@@ -1,0 +1,336 @@
+---
+title: "Reproducible script for the publication"
+author: "Weinholdt Claus"
+date: "2018-05-03"
+output: github_document 
+---
+
+<!--   html_document:
+    toc: true
+    theme: united
+  pdf_document:
+    toc: true
+    highlight: zenburn -->
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse __Analysis of genes regulated by isoforms of the epidermal growth factor receptor in a glioblastoma cell line__
+
+## Contents
+
+* [Getting started](#start)
+    * [Installation](#Installation)
+    * [Data](#data)
+* [Analysis](#Analysis)
+    * [Normalizing Illumina BeadChips expression data](#Normalizing)
+        * [Schematic Expression Pattern](#SchematicE)
+    * [Calculating the log likelihood for each gene in each group](#CalculatingLik)
+    * [Calculating Bayesian Information Criterion of the log likelihood ](#BIC)
+    * [Approximating posterior by the Bayesian Information Criterion](#Posterior)    
+* [Identification of genes belonging to group c](#Comapre)
+    * [Examples for group c](#GrC)
+    * [Fold changes plot of Illumina data vs RT-qPCR](#FCplot)
+
+## <a name="start"></a>Getting started
+
+### <a name="Installation"></a>Installation of necessary packages
+
+Install and load packages containing the functions for the analyses
+
+```r
+install.packages("devtools")
+devtools::install_github("BGSC")
+library(BGSC)
+```
+
+### <a name="data"></a> Load expression data
+<!-- Loading data  -->
+```r
+data(ExpData)
+```
+
+```{r, comment=NA, echo=FALSE}
+suppressWarnings( library("BGSC",quietly = TRUE,warn.conflicts = FALSE) )
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(gtable)
+suppressWarnings( library(purrr,quietly = TRUE,warn.conflicts = FALSE) ) 
+```
+
+## <a name="Analysis"></a> Run analysis
+
+### <a name="Normalizing""></a> Normalizing Illumina BeadChips expression data
+
+We use the function *neqc* function from the *limma* package which is developed for normalizing Illumina BeadChips.
+The *neqc* function performs background correction using negative control probes followed by quantile normalization using negative and positive control probes. 
+The *Illumina GenomeStudio* calculates and reports a detection p-value, which represents the confidence that a given transcript is expressed above the background defined by negative control probes.
+For further analysis, we used only the those probes for which the detection p-values for all six probes were below 0.05.
+```{r normalizeExpData}
+normData <- normalizeExpData()
+```
+#### <a name="SchematicE""></a> Schematic Expression Pattern
+We define that:
+
+- Genes of group $a$ are never regulated by EGF, whereas genes of groups b-d are regulated by EGF.
+- Genes of group $b$ are regulated by EGF only through other receptors besides EGFR isoforms.
+- Genes of group $c$ are regulated by EGFR isoforms II - IV and not by other receptors.
+- Genes of group $d$ are regulated by EGFR isoform I and not other receptors or EGFR isoforms II - IV.
+
+<!--  Based on this reduction, we can now formulate the goal of this work as the identification of putative target genes regulated by EGFR isoforms II - IV and not by other receptors or more crisply as the goal of identifying genes of group $c$. -->
+
+```{r schematic gr, echo=FALSE, fig.height=10, fig.width=10}
+addBorder_gtable <- function(g){ g <- gtable_add_grob(g, grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
+                                                          t= 1 , b = nrow(g), l = 1, r = ncol(g))
+      # g <- gtable_add_grob(g,
+      #                      grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
+      #                      t = 1, l = 1, r = ncol(g))
+      
+      return(g)
+    }
+Lsets <- get.Lset()
+IndicatorVar <- lapply(Lsets,function(x){
+  vec <- rep(0,6);names(vec) <- c(1:6)
+  if (!is.null(x$s1)) { vec[x$s1] <- 1 }
+  return(vec)
+})
+IndicatorVar.gtable <- purrr::map2( IndicatorVar , names(IndicatorVar), function(vec,.y){
+       pmat <- t(matrix(vec,2,3))
+  dimnames(pmat) <- list( c('no RNAi','RNAi by siRNA ALL','RNAi by siRNA I'),c('no EGF','EGF'))  
+  pmat <- pmat[c(1,3,2),] ## to get same oder as in paper
+  bk = seq(0,max(1),by = 1)
+  #hmcols <- c(RColorBrewer::brewer.pal(9,"Reds")[6],RColorBrewer::brewer.pal(9,"Blues")[7])# colorRampPalette(c("blue", "red"))(length(bk))
+  hmcols <- RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
+  
+  if(.y == 'a') hmcols <- 'slategray'
+  
+  pheatmap::pheatmap(pmat,silent = T,color = hmcols,breaks = seq(-1,1,by = 1) ,display_numbers = T,fontsize_number = 16,number_format = '%.0f',cluster_rows = FALSE,cluster_cols = FALSE,main=paste0('Expression pattern of for group ', .y),fontsize = 12 ,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black',legend = FALSE) 
+} )
+
+grid.arrange(
+  addBorder_gtable(IndicatorVar.gtable$a$gtable),
+  addBorder_gtable(IndicatorVar.gtable$b$gtable),
+  addBorder_gtable(IndicatorVar.gtable$c$gtable),
+  addBorder_gtable(IndicatorVar.gtable$d$gtable),
+  nrow = 2,ncol = 2,
+ top = textGrob("Expression pattern",gp = gpar(fontsize = 20,fontface = "bold")),
+ bottom = textGrob("For group a all six expression values are assigned to the same class (black).\n For the groups b - d all six expression values are assigned to two classes - class 0 (red) and class 1 (blue).",gp = gpar(fontsize = 12,font = 1))
+ ) 
+   
+``` 
+
+### <a name="CalculatingLik""></a> Calculating the log likelihood for each gene in each group (a, b, c, and d)
+For group $a$ we assume that all six expression levels stem from the same Gaussian. In this case the mean $\mu$ and standard deviation $\sigma$ of this Gaussian (black) are equal to $\mu$ and $\sigma$ of the six expression levels. For the groups b - d we assume that all six expression levels stems from a mixture of two Gaussian distributions with independent means $\mu_0$ and $\mu_1$, and one pooled standard deviation $\sigma$. For groups b - d we assume that the expression levels [$x_1$, $x_3$, and $x_5$], [$x_1$, $x_3$, $x_4$, and $x_5$], and [$x_1$, $x_3$, $x_4$, $x_5$, and $x_6$] stem from the Gaussian based on $\mu_0$ (red), respectively. For groups b - d we assume that the expression levels [$x_2$, $x_4$, and $x_6$], [$x_2$ and $x_4$], and [$x_2$] stem from the Gaussian based on $\mu_1$ (blue), respectively.
+
+```{r logLik}
+Lsets <- get.Lset()
+normDataLogLikData <- logLikelihoodOfnormData(normData$E)
+normDataLogLik <- normDataLogLikData[['logL']]
+ALL.MUs  <- normDataLogLikData[['ALL.MUs']]
+ALL.VARs <- normDataLogLikData[['ALL.VARs']]
+```
+
+#### <a name="ProbabilityDens""></a> Probability density plots of the Gaussian distributions
+To gain a better understanding we show as example for each group a gene having the minimal log likelihood. For groups a - d the examples are ABCB7, ACSL1, TPR and ADAR, respectively.
+At each plot we plot  the probability density of the Gaussian distribution for group a as black curve and mark the six log2-expression values with black circles. For groups b − d we plot with red and blue curves the probability densities of the Gaussian distributions and mark the six log2-expression values with circles which are colored according to classes for class 0 in red and class 1 in blue.
+```{r Density, echo=TRUE, fig.height=9, fig.width=9}
+GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
+names(GeneExample) <- c('a','b','c','d')
+tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData, ALL.MUs, ALL.VARs, useGroup = .y ,DOplot = FALSE) )
+grid.arrange( tmpPlot$a + theme(legend.position = "none"),
+              tmpPlot$b + theme(legend.position = "none"),
+              tmpPlot$c + theme(legend.position = "none"),
+              tmpPlot$d + theme(legend.position = "none") ,ncol=2,nrow=2)
+```
+
+### <a name="BIC""></a> Calculating Bayesian Information Criterion of the log likelihood 
+Performing classification through model selection based on minimum log likelihood is problematic when the number of free model parameters is not identical among all models under comparison. In the present work, model $a$ has two free model parameters, while models $b$, $c$, and $d$ have three. Hence, a naive classification based on a minimum log likelihood criterion would give a spurious advantage to models $b$, $c$, and $d$ with three free model parameters over model $a$ with only two parameters. In order to eliminate that spurious advantage, we compute marginal likelihoods $p(x|z)$ using the approximation of Schwarz et al. commonly referred to as Bayesian Information Criterion.
+
+```{r BIC}
+npar <- sapply(Lsets, function(x) sum(!sapply(x,is.null ) )) + 1  ## number parameters for log likelihood -> mean + var 
+k <-  sapply(Lsets, function(x) sum( sapply(x,length) )) ## number of samples
+print(rbind(npar,k))
+normDataBIC <- get.IC(normDataLogLik , npar, k , IC = 'BIC')
+``` 
+
+```{r results="PlotDataEXP", echo = FALSE}
+print('Number of genes assigned to group with the minimal Bayesian Information Criterion')
+BICminInd <- apply( normDataBIC,MARGIN = 1, FUN = minIndex)
+tmp <- table(BICminInd); names(tmp) <- names(Lsets)
+tmpMat <- as.matrix(tmp);colnames(tmpMat) <- "#genes assigned to group"
+print(t(tmpMat))
+```
+
+
+### <a name="Posterior""></a> Approximating posterior by the Bayesian Information Criterion
+We assume that $70\%$ of all genes are not regulated by EGF, so we define the prior probability for group a by $p(a) = 0.70$, and we further assume that the remaining $30\%$ of the genes fall equally in groups with EGF-regulation, so we define the prior probabilities for groups $b$, $c$, and $d$ by $p(b) = p(c) = p(d) = 0.1$. 
+We can computed for $z \in \{a, b, c, d\}$ the posterior $p(z|x) \approx p(x|z) \cdot p(z)$ and then performed Bayesian model selection by assigning each gene to that group $z$ with the maximum approximate posterior $p(z|x)$.
+```{r Posterior}
+normDataPosterior <- get.Posterior( normDataBIC ,Pis = c(0.7,0.1,0.1,0.1))
+POSTmaxInd <- apply(normDataPosterior, MARGIN = 1 ,FUN = maxIndex)
+PostClass <- get.gene.group(data = normDataPosterior,indexing = "maximal",filter = 0.75, DoPlot = TRUE)
+```   
+
+## <a name="Comapre"></a> Identification of genes belonging to group c
+Genes of group $c$ are putative target genes regulated by EGFR isoforms \mbox{II - IV} and not by other receptors.
+
+### <a name="GrC"></a> Examples for group c
+After calculating the log2-fold change for group $c$ by $\mu_{c1}$ - $\mu_{c0}$, we validated three up regulated genes, namely CKAP2L, ROCK1, and TPR and three down regulated genes, namely ALDH4A1, CLCA2, and GALNS.
+
+```{r load qPCR}
+    ### calculating mean and log2-fold change
+    MeanFoldChangeClass <- get.log2Mean.and.log2FC(normData = normData) 
+    
+    ### load qPCR data
+    qCPRdataC <- getQPCR()
+    
+    ### annotation of gene examples
+    IDs.dt <- data.table::data.table(normData$genes,keep.rownames = T,key = 'rn')
+    IDs.dt.c <- IDs.dt[rownames(PostClass$resFilter$c),]
+    data.table::setkey(IDs.dt.c,'SYMBOL')
+    
+    qgenesIDs <- lapply(qCPRdataC$rn, function(qg) as.character(IDs.dt.c[qg,][['rn']]) )
+    names(qgenesIDs) <- qCPRdataC$rn
+```
+
+<!-- 
+### Schematic expression patterns of group c 
+c0 is red and c1 is blue ... 
+```{r group c example, echo=FALSE, fig.height=4, fig.width=5}
+      ### bar log2 FC qPCR Illumina  ----------------------------------------------------------------------
+        Leset <- get.Lset()
+        pmat <- t(matrix(c(0,1,0,0,0,1),2,3))
+        dimnames(pmat) <- list( c('no RNAi','RNAi by siRNA ALL','RNAi by siRNA I'),c('no EGF','EGF'))  
+        pmat <- pmat[c(1,3,2),] ## to get same oder as in paper
+        bk = seq(0,max(1),by = 1)
+        #hmcols <- c(RColorBrewer::brewer.pal(9,"Reds")[6],RColorBrewer::brewer.pal(9,"Blues")[7])# colorRampPalette(c("blue", "red"))(length(bk))
+        hmcols <- RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
+        pheatmap::pheatmap(pmat,color = hmcols,breaks = seq(-1,1,by = 1) ,display_numbers = T,fontsize_number = 20,number_format = '%.0f',cluster_rows = FALSE,cluster_cols = FALSE,main='expression pattern group c',fontsize = 10,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black',legend = FALSE)
+```
+-->
+
+####  Expression patterns 
+```{r group c exp genes ,echo = FALSE }                  
+
+        Gene.gtable <- list()
+        for(tmoG in names(qgenesIDs)){
+          pmat <- t(matrix(normData$E[qgenesIDs[[tmoG]],],2,3))
+          dimnames(pmat) <- list( c('no RNAi','RNAi by siRNA ALL','RNAi by siRNA I'),c('no EGF','EGF'))  
+          pmat <- pmat[c(1,3,2),] ## to get same oder as in paper
+          
+          pmat <- 2^pmat
+          tmpnScore <-  ceiling(pmat/100)*100
+          # tmpnScore <-  ceiling(pmat/10)*10
+          
+          bk = seq(0,max(tmpnScore),by = 1)
+          hmcols <- colorRampPalette(c("white", "darkred"))(length(bk)-1)
+          #pheatmap::pheatmap(pmat,color = hmcols,breaks = seq(0,max(tmpnScore),by = 1) ,display_numbers = T,fontsize_number = 12,cluster_rows = FALSE,cluster_cols = FALSE,main=tmoG,fontsize = 12,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black', )
+                             # filename = paste0(plotDir,'/Heatmap_Score_',tair,'.pdf') ,width = 10 ,height = 10)
+          Gene.gtable[[tmoG]] <- pheatmap::pheatmap(pmat,silent = T,color = hmcols,breaks = seq(0,max(tmpnScore),by = 1) ,display_numbers = T,fontsize_number = 15,cluster_rows = FALSE,cluster_cols = FALSE,main=tmoG,fontsize = 12,gaps_row = c(1,2),gaps_col = 1,border_color = 'black',number_color = 'black')
+        }
+```
+
+```{r group c exp genes plot, echo=FALSE, fig.height=8, fig.width=12}
+  addBorder_gtable <- function(g){ g <- gtable_add_grob(g,
+                                            grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
+                                            t= 1 , b = nrow(g), l = 1, r = ncol(g))
+                      # g <- gtable_add_grob(g,
+                      #                      grobs = rectGrob(gp = gpar(fill = NA, lwd = 1)),
+                      #                      t = 1, l = 1, r = ncol(g))
+                      
+                      return(g)
+        }
+  grid.arrange(
+    addBorder_gtable(Gene.gtable$CKAP2L$gtable),
+    addBorder_gtable(Gene.gtable$ROCK1$gtable),
+    addBorder_gtable(Gene.gtable$TPR$gtable),
+    addBorder_gtable(Gene.gtable$ALDH4A1$gtable),
+    addBorder_gtable(Gene.gtable$CLCA2$gtable),
+    addBorder_gtable(Gene.gtable$GALNS$gtable),
+    nrow=2,ncol=3)             
+```
+
+#### Barplot of Illumina expression data
+
+```{r mean Illumina expression, echo=FALSE}
+    tmp <- data.table(MeanFoldChangeClass$c[do.call(c,qgenesIDs),.(rn,s1M,s0M,s1s0FC)])
+    setnames(tmp,c('rn','s1M','s0M','s1s0FC'),c('IlluminaID',"meanC1","meanC0",'log2-fold change'))
+    tmp$GeneName <- names(qgenesIDs)
+    tmp <- tmp[,c('GeneName','IlluminaID',"meanC1","meanC0",'log2-fold change'),with=F]
+    setkey(tmp,'GeneName')
+    print(tmp[c('CKAP2L', 'ROCK1','TPR','ALDH4A1', 'CLCA2', 'GALNS'),])
+```
+
+```{r barplot exp data ,echo=FALSE}       
+    ### bar Illumina expression ----------------------------------------------------------------------
+      PlotDataEXP <- make.plot.data.exp.Ill.qPCR(qCPRdata = qCPRdataC, MeanFoldChangeClass = MeanFoldChangeClass,class="c")
+      
+      # print(PlotDataEXP)
+      
+      rns <- levels(PlotDataEXP$Gene)[c(2,5,6,1,3,4)] ; PlotDataEXP$Gene <- factor(PlotDataEXP$Gene, levels = rns)
+      rns <- levels(PlotDataEXP$pid)[c(2,5,6,1,3,4)]  ; PlotDataEXP$pid <- factor(PlotDataEXP$pid, levels = rns)
+      
+      cols <-  RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
+      limits <- aes(ymax = PlotDataEXP$Mean + PlotDataEXP$stderr , ymin=PlotDataEXP$Mean - PlotDataEXP$stderr)
+      dodge <- position_dodge(width = 0.9)
+      
+      base_size <- 12
+      PlotExp <- ggplot(PlotDataEXP,aes(x=factor(Gene),y=Mean,fill=factor(Set))) +  
+        geom_bar(position="dodge",stat="identity") + 
+        geom_errorbar(limits, position=dodge, width=0.25) +
+        ylim(c(0 ,10)) +
+        scale_fill_manual(values = cols,name="") + 
+        labs(x = "", y = "Log2 mean expression",title="mean expression data of Illumina") +  
+        thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
+        # theme( aspect.ratio = 9 / 16) + 
+        theme(legend.position="bottom") 
+      print(PlotExp) 
+
+```
+
+<!-- 
+```{r results="PlotDataEXP", echo = FALSE}
+knitr::kable(PlotDataEXP, caption = "Table 1", row.names = F)
+```
+-->
+
+### <a name="FCplot"></a> Log2 fold changes of Illumina data vs RT-qPCR
+We have found that the six $\log_2$-fold changes of the Illumina microarray expression levels and those of the qPCR expression levels show a Pearson correlation coefficient of $0.99$ (p-value = 0.00002), suggesting that the set of 1,140 genes might possibly contain some further putative target genes of isoforms II - IV of the epidermal growth factor receptor in tumor cells.
+
+```{r barplot FC, echo=FALSE}
+    ### bar log2 FC qPCR Illumina  ----------------------------------------------------------------------
+      PlotDataFC <- make.plot.data.FC.Ill.qPCR(qCPRdata = qCPRdataC, qgenesIDs = qgenesIDs, MeanFoldChangeClass, class="c" )
+      
+      print(cor.test( PlotDataFC[PlotDataFC$Set == 'Microarray','FC'],PlotDataFC[PlotDataFC$Set == 'qPCR','FC'] ))    
+  
+      # print(PlotDataFC)
+      
+      rns <- levels(PlotDataFC$Gene)[c(2,5,6,1,3,4)] ; PlotDataFC$Gene <- factor(PlotDataFC$Gene, levels = rns)
+      rns <- levels(PlotDataFC$pid)[c(2,5,6,1,3,4)]  ; PlotDataFC$pid <- factor(PlotDataFC$pid, levels = rns)
+      
+      cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(2,10)]
+      limits <- aes(ymax = PlotDataFC$FC + PlotDataFC$stderr , ymin=PlotDataFC$FC - PlotDataFC$stderr)
+      dodge <- position_dodge(width=0.9)
+      
+      # g1 <- ggplot(PlotDataFC,aes(x=factor(pid),y=FC,fill=factor(Set))) +
+      PlotFC <- ggplot(PlotDataFC,aes(x=factor(Gene),y=FC,fill=factor(Set))) +  
+        geom_bar(position="dodge",stat="identity") + 
+        geom_errorbar(limits, position=dodge, width=0.25) +
+        ylim(c(-2 ,2)) +
+        labs(x = "", y = "Log2-fold change",title="Comparison of Illumina data and RT-qPCR") +
+        scale_fill_manual(values = cols,name="") + 
+        thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
+        # theme( aspect.ratio = 9 / 16) + 
+        theme(legend.position="bottom") 
+      print(PlotFC)     
+```
+
+```{r results="PlotDataFC", echo = FALSE}
+PlotDataFC.dt <- data.table(PlotDataFC)
+setkeyv(PlotDataFC.dt,c('Gene','Set'))
+knitr::kable(PlotDataFC.dt[ c('CKAP2L', 'ROCK1','TPR','ALDH4A1', 'CLCA2', 'GALNS'),.(Gene,Set,FC,stderr)], caption = "Table 1", row.names = F,digits = 2)
+```
+
+<!--  Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot. -->
