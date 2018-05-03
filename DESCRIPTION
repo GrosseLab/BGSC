@@ -1,6 +1,6 @@
 Package: BGSC
 Title: Bayesian gene selection criterion (BGSC) approach
-Version: 0.0.1.1
+Version: 0.0.1.2dev
 Authors@R: person("Claus", "Weinholdt", email = "claus.weinholdt@informatik.uni-halle.de", role = c("aut", "cre"))
 Description: Package for reproducing the results of the publication: Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse "Analysis of genes regulated by isoforms of the epidermal growth factor receptor in a glioblastoma cell line"
 Depends:
