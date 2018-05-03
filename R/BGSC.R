@@ -775,8 +775,8 @@ REFSEQ_MRNA_to_Illm <- function(string, asString=FALSE){
   return(ILM)
 }
 
-# ----------------------------------------------------------------------
-PIS_Study <- function(){
+# study the effect of prior ----------------------------------------------------------------------
+PIS_Study <- function(normDataBIC, qgenesIDs){
   ### 
   PIS <- list("P91"=c(0.91 ,0.03 ,0.03  ,0.03),
               "P85"=c(0.85 ,0.05 ,0.05  ,0.05),
@@ -788,13 +788,19 @@ PIS_Study <- function(){
   PostClassPis  <- lapply(PIS, function(Pis){  
     tmp <- get.Posterior( normDataBIC ,Pis) 
     print(Pis)
-    get.gene.group(data=tmp,indexing="max",filter=0.75, DoPlot=TRUE) 
+    get.gene.group(data=tmp,indexing="maximal",filter = 0.75, DoPlot=TRUE) 
+    
   })
   
+  print(lapply(PostClassPis,function(x) x$res$c[as.character(do.call(c,qgenesIDs)),]))
+  tmp <- f.input.list(lapply(PostClassPis,function(x) rownames(x$resFilter$c) )[-1])
+  tmp <- f.input.list(lapply(PostClassPis,function(x) rownames(x$resFilter$c) )[-6])
+  
+  return(PostClassPis)
 }
 
 # ----------------------------------------------------------------------
-makExpData <- function() {
+makeExpData <- function() {
   wd2 <- "/Volumes/ianvsITZroot/home/adsvy/Kappler/Kappler_Wichmann_Medizin"
   x <- limma::read.ilmn(files=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt")  ,sep="\t",
                         ctrlfiles=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/ControlProbeProfile_SF767-1-799-6.txt"),

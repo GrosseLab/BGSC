@@ -1,5 +1,5 @@
 #-------------------------------------------
-#' @title Venndiagramm Whrapper 
+#' @title Venndiagramm Wrapper 
 #' @author Claus Weinholdt
 #' @description Venndiagramm for list
 #' @param inList is list
