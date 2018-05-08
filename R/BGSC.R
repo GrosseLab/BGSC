@@ -736,21 +736,22 @@ make.enrichment.data <- function(data,LsetForFC,normData){
 
   if(is.null(LsetForFC[['s1']])){
     logFC <- NA
-  }else if( length(LsetForFC[['s0']]) == 1 ){
+  } else if( length(LsetForFC[['s0']]) == 1 ) {
     logFC <- rowMeans(normData$E[rownames(data),LsetForFC[['s1']] ]) - (normData$E[rownames(data),LsetForFC[['s0']] ])
-  }else if( length(LsetForFC[['s1']]) == 1 ){
+  } else if( length(LsetForFC[['s1']]) == 1 ) {
     logFC <- (normData$E[rownames(data),LsetForFC[['s1']] ]) - rowMeans(normData$E[rownames(data),LsetForFC[['s0']] ])
-  }else{
+  } else {
     logFC <- rowMeans(normData$E[rownames(data),LsetForFC[['s1']] ]) - rowMeans(normData$E[rownames(data),LsetForFC[['s0']] ])
   }
   tmp$logFC <- logFC
   tmp <- tmp[,c('SYMBOL','logFC')]
   
-  tmp2 <- data.frame("REFSEQ_MRNA"=Illumina_to_REFSEQ_MRNA[rownames(tmp),]$REFSEQ_MRNA , "logFC" = tmp$logFC)
+  tmp2 <- data.frame("REFSEQ_MRNA" = Illumina_to_REFSEQ_MRNA[rownames(tmp),]$REFSEQ_MRNA , "logFC" = tmp$logFC)
   rownames(tmp2) <- rownames(tmp)
   
-  return( list( "SYMlogFC"=tmp,"SYM"= unique(as.character(tmp$SYMBOL)),
-                "REFSEQlogFC"=tmp2,"REFSEQ"= unique(as.character(tmp2$REFSEQ_MRNA))))
+  return( list( "SYMlogFC" = tmp, "SYM" = unique(as.character(tmp$SYMBOL)),
+                "REFSEQlogFC" = tmp2, "REFSEQ" = unique(as.character(tmp2$REFSEQ_MRNA)))
+          )
 }
 
 # ----------------------------------------------------------------------
