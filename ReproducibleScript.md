@@ -50,7 +50,7 @@ data(ExpData)
 <a name="Analysis"></a> Run analysis
 ------------------------------------
 
-### <a name="Normalizing""></a> Normalizing Illumina BeadChips expression data
+### <a name="Normalizing"></a> Normalizing Illumina BeadChips expression data
 
 We use the function *neqc* function from the *limma* package which is developed for normalizing Illumina BeadChips. The *neqc* function performs background correction using negative control probes followed by quantile normalization using negative and positive control probes. The *Illumina GenomeStudio* calculates and reports a detection p-value, which represents the confidence that a given transcript is expressed above the background defined by negative control probes. For further analysis, we used only those probes for which the detection p-values for all six probes were below 0.05.
 
@@ -60,7 +60,7 @@ normData <- normalizeExpData()
 
     ## genes with detection pval <= 0.05 in 6 of 6 Samples --> 16742 of 47322
 
-#### <a name="SchematicE""></a> Schematic Expression Pattern
+#### <a name="SchematicE"></a> Schematic Expression Pattern
 
 We define that:
 
@@ -72,7 +72,7 @@ We define that:
 <!--  Based on this reduction, we can now formulate the goal of this work as the identification of putative target genes regulated by EGFR isoforms II-IV and not by other receptors or more crisply as the goal of identifying genes of group $c$. -->
 ![](ReproducibleScript_files/figure-markdown_github/schematic%20gr-1.png)
 
-### <a name="CalculatingLik""></a> Calculating the log-likelihood for each gene in each group (a, b, c, and d)
+### <a name="CalculatingLik"></a> Calculating the log-likelihood for each gene in each group (a, b, c, and d)
 
 For group *a* we assume that all six expression levels stem from the same Gaussian. In this case the mean *μ* and standard deviation *σ* of this Gaussian (black) are equal to *μ* and *σ* of the six expression levels. For the groups b - d we assume that all six expression levels stems from a mixture of two Gaussian distributions with independent means *μ*<sub>0</sub> and *μ*<sub>1</sub>, and one pooled standard deviation *σ*. For groups b - d we assume that the expression levels \[*x*<sub>1</sub>, *x*<sub>3</sub>, and *x*<sub>5</sub>\], \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, and *x*<sub>5</sub>\], and \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, *x*<sub>5</sub>, and *x*<sub>6</sub>\] stem from the Gaussian based on *μ*<sub>0</sub> (red), respectively. For groups b - d we assume that the expression levels \[*x*<sub>2</sub>, *x*<sub>4</sub>, and *x*<sub>6</sub>\], \[*x*<sub>2</sub> and *x*<sub>4</sub>\], and \[*x*<sub>2</sub>\] stem from the Gaussian based on *μ*<sub>1</sub> (blue), respectively.
 
@@ -84,7 +84,7 @@ ALL.MUs  <- normDataLogLikData[['ALL.MUs']]
 ALL.VARs <- normDataLogLikData[['ALL.VARs']]
 ```
 
-#### <a name="ProbabilityDens""></a> Probability density plots of the Gaussian distributions
+#### <a name="ProbabilityDens"></a> Probability density plots of the Gaussian distributions
 
 As an example, we show a gene having the minimal log-likelihood for each group. As an example, For the groups *a* − *d* the examples are ABCB7, ACSL1, TPR, and ADAR, respectively. At each graphic, we plot the probability density of the Gaussian distribution for the group *a* as black curve and mark the six log2-expression values with black circles. For groups *b* − *d*, we plot with red and blue curves the probability densities of the Gaussian distributions and mark the six log2-expression values with circles which are colored according to classes for class 0 in red and for class 1 in blue.
 
@@ -100,7 +100,7 @@ grid.arrange( tmpPlot$a + theme(legend.position = "none"),
 
 ![](ReproducibleScript_files/figure-markdown_github/Density-1.png)
 
-### <a name="BIC""></a> Calculating Bayesian Information Criterion of the log-likelihood
+### <a name="BIC"></a> Calculating Bayesian Information Criterion of the log-likelihood
 
 Performing classification through model selection based on minimum log-likelihood is problematic when the number of free model parameters is not identical among all models under comparison. In the present work, model *a* has two free model parameters, while models *b*, *c*, and *d* have three. Hence, a naive classification based on a minimum log-likelihood criterion would give a spurious advantage to models *b*, *c*, and *d* with three free model parameters over model *a* with only two parameters. In order to eliminate that spurious advantage, we compute marginal likelihoods *p*(*x*|*z*) using the approximation of Schwarz et al. commonly referred to as Bayesian Information Criterion.
 
@@ -123,7 +123,7 @@ normDataBIC <- get.IC(normDataLogLik , npar, k , IC = 'BIC')
     ##                             a    b    c    d
     ## #genes assigned to group 3446 5646 5015 2635
 
-### <a name="Posterior""></a> Approximating posterior by the Bayesian Information Criterion
+### <a name="Posterior"></a> Approximating posterior by the Bayesian Information Criterion
 
 We assume that 70% of all genes are not regulated by EGF, so we define the prior probability for group a by *p*(*a*)=0.70, and we further assume that the remaining 30% of the genes fall equally in groups with EGF-regulation, so we define the prior probabilities for groups *b*, *c*, and *d* by *p*(*b*)=*p*(*c*)=*p*(*d*)=0.1. We can compute for *z* ∈ {*a*, *b*, *c*, *d*} the posterior *p*(*z*|*x*)≈*p*(*x*|*z*)⋅*p*(*z*) and then performed Bayesian model selection by assigning each gene to that group *z* with the maximum approximate posterior *p*(*z*|*x*).
 
@@ -174,7 +174,7 @@ c0 is red and c1 is blue ...
 -->
 #### Expression patterns
 
-![](ReproducibleScript_files/figure-markdown_github/group%20c%20exp%20genes%20plot-1.png)
+![](ReproducibleScript_files/figure-markdown_github/groupC_ExpGenesPlot-1.png)
 
 #### Barplot of Illumina expression data
 
@@ -257,7 +257,7 @@ We have found that the six log<sub>2</sub>-fold changes of the Illumina microarr
     ## 
     ## other attached packages:
     ## [1] purrr_0.2.4         gtable_0.2.0        gridExtra_2.3      
-    ## [4] ggplot2_2.2.1       BGSC_0.0.1.1        limma_3.34.8       
+    ## [4] ggplot2_2.2.1       BGSC_0.0.1.3        limma_3.34.8       
     ## [7] data.table_1.10.4-3
     ## 
     ## loaded via a namespace (and not attached):

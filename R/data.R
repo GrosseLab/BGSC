@@ -1,9 +1,8 @@
 
-#' Expression data set of XXX
+#' Expression data set of Glioblastoma cell line SF767 
 #'
-#' A dataset containing the EListRaw objekt with 
+#' A dataset containing the EListRaw objekt from limma::read.ilmn(files="Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt", ctrlfiles="ControlProbeProfile_SF767-1-799-6.txt", other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS") )
 #' @format lists : "source" ,"E"   ,    "genes" ,  "other" ,  "targets"
-#' 
 #' @format "E" is a data frame with 48209 rows and 6 variables:
 #' \describe{
 #'   \item{SF 767 1}{expression}

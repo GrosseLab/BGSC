@@ -3,12 +3,12 @@
 \docType{data}
 \name{ExpData}
 \alias{ExpData}
-\title{Expression data set of XXX}
+\title{Expression data set of Glioblastoma cell line SF767}
 \format{lists : "source" ,"E"   ,    "genes" ,  "other" ,  "targets"}
 \usage{
 ExpData
 }
 \description{
-A dataset containing the EListRaw objekt with
+A dataset containing the EListRaw objekt from limma::read.ilmn(files="Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt", ctrlfiles="ControlProbeProfile_SF767-1-799-6.txt", other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS") )
 }
 \keyword{datasets}
