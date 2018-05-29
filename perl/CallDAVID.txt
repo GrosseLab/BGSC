@@ -1,0 +1,13 @@
+
+
+ #/home/adsvy/miniconda2/bin/perl /home/adsvy/GitHubRepo/HumanData/perl/chartReport_modify2.pl /home/adsvy/Kappler/Kappler_Wichmann_Medizin/Auswertung/DAVID6.8/Filtering_REFSEQ_MRNA_a.txt 'REFSEQ_MRNA' /home/adsvy/Kappler/Kappler_Wichmann_Medizin/Auswertung/DAVID6.8/Filtering_REFSEQ_MRNA_a_chartReport.txt
+ #/home/adsvy/miniconda2/bin/perl /home/adsvy/GitHubRepo/HumanData/perl/chartReport_modify2.pl /home/adsvy/Kappler/Kappler_Wichmann_Medizin/Auswertung/DAVID6.8/Filtering_REFSEQ_MRNA_b.txt 'REFSEQ_MRNA' /home/adsvy/Kappler/Kappler_Wichmann_Medizin/Auswertung/DAVID6.8/Filtering_REFSEQ_MRNA_b_chartReport.txt
+ #/home/adsvy/miniconda2/bin/perl /home/adsvy/GitHubRepo/HumanData/perl/chartReport_modify2.pl /home/adsvy/Kappler/Kappler_Wichmann_Medizin/Auswertung/DAVID6.8/Filtering_REFSEQ_MRNA_c.txt 'REFSEQ_MRNA' /home/adsvy/Kappler/Kappler_Wichmann_Medizin/Auswertung/DAVID6.8/Filtering_REFSEQ_MRNA_c_chartReport.txt
+ #/home/adsvy/miniconda2/bin/perl /home/adsvy/GitHubRepo/HumanData/perl/chartReport_modify2.pl /home/adsvy/Kappler/Kappler_Wichmann_Medizin/Auswertung/DAVID6.8/Filtering_REFSEQ_MRNA_d.txt 'REFSEQ_MRNA' /home/adsvy/Kappler/Kappler_Wichmann_Medizin/Auswertung/DAVID6.8/Filtering_REFSEQ_MRNA_d_chartReport.txt
+
+
+
+/Users/weinhol/miniconda2/bin/perl /Users/weinhol/GitHub/BGSC/perl/chartReport_modify2.pl /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_a.txt 'REFSEQ_MRNA' /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_a_chartReport.txt
+/Users/weinhol/miniconda2/bin/perl /Users/weinhol/GitHub/BGSC/perl/chartReport_modify2.pl /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_b.txt 'REFSEQ_MRNA' /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_b_chartReport.txt
+/Users/weinhol/miniconda2/bin/perl /Users/weinhol/GitHub/BGSC/perl/chartReport_modify2.pl /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_c.txt 'REFSEQ_MRNA' /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_c_chartReport.txt
+/Users/weinhol/miniconda2/bin/perl /Users/weinhol/GitHub/BGSC/perl/chartReport_modify2.pl /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_d.txt 'REFSEQ_MRNA' /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_d_chartReport.txt

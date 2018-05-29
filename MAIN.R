@@ -262,6 +262,14 @@ main <- function(){
     write.table(enrich[[i]]$REFSEQ, paste0(enrichmentFolder,'Filtering_REFSEQ_MRNA_',i,'.txt'),quote = FALSE,row.names = FALSE,col.names = FALSE)
   }
   
+  ### DAVID -> /Users/weinhol/GitHub/BGSC/perl/CallDAVID.txt
+  #
+  #/Users/weinhol/miniconda2/bin/perl /Users/weinhol/GitHub/BGSC/perl/chartReport_modify2.pl /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_a.txt 'REFSEQ_MRNA' /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_a_chartReport.txt
+  #/Users/weinhol/miniconda2/bin/perl /Users/weinhol/GitHub/BGSC/perl/chartReport_modify2.pl /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_b.txt 'REFSEQ_MRNA' /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_b_chartReport.txt
+  #/Users/weinhol/miniconda2/bin/perl /Users/weinhol/GitHub/BGSC/perl/chartReport_modify2.pl /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_c.txt 'REFSEQ_MRNA' /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_c_chartReport.txt
+  #/Users/weinhol/miniconda2/bin/perl /Users/weinhol/GitHub/BGSC/perl/chartReport_modify2.pl /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_d.txt 'REFSEQ_MRNA' /Users/weinhol/GitHub/BGSC/inst/extdata/Filtering_REFSEQ_MRNA_d_chartReport.txt
+  ##
+  
   ChartReport <- list()
   ChartReportCategoryList  <- list()
   ChartReportCategorySigList <- list()
@@ -279,7 +287,9 @@ main <- function(){
       ChartReportCategoryList[[ChartReportCategory]][[i]] <- ChartReport[[i]][ChartReportCategory,]
       setkey(ChartReportCategoryList[[ChartReportCategory]][[i]],'Term')
       
-      ChartReportCategorySigList[[ChartReportCategory]][[i]] <-ChartReportCategoryList[[ChartReportCategory]][[i]][which(Benjamini < 0.1),]
+      # ChartReportCategorySigList[[ChartReportCategory]][[i]] <-ChartReportCategoryList[[ChartReportCategory]][[i]][which(Benjamini < 0.1),]
+      ChartReportCategorySigList[[ChartReportCategory]][[i]] <-ChartReportCategoryList[[ChartReportCategory]][[i]][which(FDR < (0.05 * 100)),] ### FDR is multiplied with 100
+      
       setkey(ChartReportCategorySigList[[ChartReportCategory]][[i]],'Term')
       
       ChartReportCategoryTermsList[[ChartReportCategory]] <- unique(c(ChartReportCategoryTermsList[[ChartReportCategory]], ChartReportCategorySigList[[ChartReportCategory]][[i]]$Term) )
@@ -287,34 +297,67 @@ main <- function(){
     }
   }
   
-  ChartReportCategorySigMatList <- list()
-  # ChartReportCategory <- 'KEGG_PATHWAY' #ChartReportCategory <- 'GOTERM_MF_FAT'
-  for(ChartReportCategory in names(ChartReportCategorySigList)){
-    print(ChartReportCategory)
-    ChartReportCategorySigMat <- matrix(0, length(names(ChartReportCategorySigList[[ChartReportCategory]])), length(ChartReportCategoryTermsList[[ChartReportCategory]]),
-                                        dimnames = list(names(ChartReportCategorySigList[[ChartReportCategory]]),ChartReportCategoryTermsList[[ChartReportCategory]]) )
-    print(dim(ChartReportCategorySigMat))
-    if(dim(ChartReportCategorySigMat)[2] > 0){
-      for(i in names(ChartReportCategorySigList[[ChartReportCategory]]) ){
-        tmp <- ChartReportCategorySigList[[ChartReportCategory]][[i]]$Term  
-        if(length(tmp) > 0){
-          ChartReportCategorySigMat[i,tmp] <- 1
+  for
+ do.call(rbind, purrr::map2(ChartReportCategorySigList$KEGG_PATHWAY,names(ChartReportCategorySigList$KEGG_PATHWAY), 
+                            function(x,group) {
+                                       tmp <- x[,c('Category','Term', 'Count','%','Pvalue','FDR')]; 
+                                       if (nrow(tmp) > 1) { tmp <- cbind(tmp,group) } else {tmp$group <- NA}
+                                       tmp
+                            })
+         )
+
+ do.call(rbind, purrr::map2(ChartReportCategorySigList$GOTERM_BP_FAT,names(ChartReportCategorySigList$KEGG_PATHWAY), 
+                            function(x,group) {
+                              tmp <- x[,c('Category','Term', 'Count','%','Pvalue','FDR')]; 
+                              if (nrow(tmp) > 1) { tmp <- cbind(tmp,group) } else {tmp$group <- NA}
+                              tmp
+                            })
+ )
+   
+  
+    ChartReportCategorySigMatList <- list()
+    # ChartReportCategory <- 'KEGG_PATHWAY' #ChartReportCategory <- 'GOTERM_MF_FAT'
+    for(ChartReportCategory in names(ChartReportCategorySigList)){
+      print(ChartReportCategory)
+      ChartReportCategorySigMat <- matrix(0, length(names(ChartReportCategorySigList[[ChartReportCategory]])), length(ChartReportCategoryTermsList[[ChartReportCategory]]),
+                                          dimnames = list(names(ChartReportCategorySigList[[ChartReportCategory]]),ChartReportCategoryTermsList[[ChartReportCategory]]) )
+      print(dim(ChartReportCategorySigMat))
+      if(dim(ChartReportCategorySigMat)[2] > 1){
+        for(i in names(ChartReportCategorySigList[[ChartReportCategory]]) ){
+          tmp <- ChartReportCategorySigList[[ChartReportCategory]][[i]]$Term  
+          if(length(tmp) > 0){
+            ChartReportCategorySigMat[i,tmp] <- 1
+          }
         }
-      }
+        
+        pheatmap::pheatmap(ChartReportCategorySigMat,cluster_cols = FALSE,cluster_rows = FALSE,legend_breaks = c(0,1),color = c('gray',2),main = ChartReportCategory,
+                           gaps_row = c(1:nrow(ChartReportCategorySigMat) ),gaps_col = c(1:ncol(ChartReportCategorySigMat) ),border_color = 'black'
+                           ,filename = paste0(enrichmentFolder,'/ChartReportSig_',ChartReportCategory,'.pdf'),width = 25,height = 10
+        )
+        
+        tmp <- do.call(rbind, purrr::map2(ChartReportCategorySigList[[ChartReportCategory]],names(ChartReportCategorySigList$KEGG_PATHWAY), 
+                                          function(x,group) {
+                                            tmp <- x[,c('Category','Term', 'Count','%','Pvalue','FDR', "List Total","Pop Hits","Pop Total","Fold Enrichment")]; 
+                                            if (nrow(tmp) > 0) { tmp <- cbind(tmp,group) } else {tmp$group <- NA}
+                                            tmp
+                                          })
+        )
+        print(tmp)
+        write.csv2(tmp,paste0(enrichmentFolder,'/ChartReportSig_',ChartReportCategory,'.csv'))
+        
+        
+        
+      } 
       
-      pheatmap::pheatmap(ChartReportCategorySigMat,cluster_cols = FALSE,cluster_rows = FALSE,legend_breaks = c(0,1),color = c('gray',2),main = ChartReportCategory,
-                         gaps_row = c(1:nrow(ChartReportCategorySigMat) ),gaps_col = c(1:ncol(ChartReportCategorySigMat) ),border_color = 'black'
-                         ,filename = paste0(enrichmentFolder,'/ChartReportSig_',ChartReportCategory,'.pdf'),width = 25,height = 10
-      )
+      ChartReportCategorySigMatList[[ChartReportCategory]] <- ChartReportCategorySigMat
       
-      
-      
-      
-    }  
-  }
   
+      
+    }
+    
+
   
-  
+  #######################################
   # library("org.Hs.eg.db")
   ENSEMBL2EG <- as.list(org.Hs.egENSEMBL2EG)
   ## Bimap interface:
