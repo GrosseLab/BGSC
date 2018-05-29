@@ -1,7 +1,7 @@
 Reproducible script for the publication
 ================
 Weinholdt Claus
-2018-05-03
+2018-05-29
 
 <!--   html_document:
     toc: true
@@ -9,7 +9,7 @@ Weinholdt Claus
   pdf_document:
     toc: true
     highlight: zenburn -->
-Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse **Analysis of genes regulated by isoforms of the epidermal growth factor receptor in a glioblastoma cell line**
+Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse **Regulatory targets of epidermal growth factor receptor alternative isoforms in a glioblastoma cell line**
 
 Contents
 --------
@@ -36,7 +36,7 @@ Install and load packages containing the functions for the analyses
 
 ``` r
 install.packages("devtools")
-devtools::install_github("BGSC")
+devtools::install_github("GrosseLab/BGSC")
 library(BGSC)
 ```
 
@@ -52,7 +52,7 @@ data(ExpData)
 
 ### <a name="Normalizing"></a> Normalizing Illumina BeadChips expression data
 
-We use the function *neqc* function from the *limma* package which is developed for normalizing Illumina BeadChips. The *neqc* function performs background correction using negative control probes followed by quantile normalization using negative and positive control probes. The *Illumina GenomeStudio* calculates and reports a detection p-value, which represents the confidence that a given transcript is expressed above the background defined by negative control probes. For further analysis, we used only those probes for which the detection p-values for all six probes were below 0.05.
+We use the function *neqc* function from the *limma* package which was developed for normalizing Illumina BeadChips data. The *neqc* function performs background correction using negative control probes followed by quantile normalization using negative and positive control probes. The *Illumina GenomeStudio* calculates and reports a detection p-value, which represents the confidence that a given transcript is expressed above background defined by negative control probes. For further analysis, we used only those probes for which the detection p-values for all six probes was below 0.05.
 
 ``` r
 normData <- normalizeExpData()
@@ -74,7 +74,7 @@ We define that:
 
 ### <a name="CalculatingLik"></a> Calculating the log-likelihood for each gene in each group (a, b, c, and d)
 
-For group *a* we assume that all six expression levels stem from the same Gaussian. In this case the mean *μ* and standard deviation *σ* of this Gaussian (black) are equal to *μ* and *σ* of the six expression levels. For the groups b - d we assume that all six expression levels stems from a mixture of two Gaussian distributions with independent means *μ*<sub>0</sub> and *μ*<sub>1</sub>, and one pooled standard deviation *σ*. For groups b - d we assume that the expression levels \[*x*<sub>1</sub>, *x*<sub>3</sub>, and *x*<sub>5</sub>\], \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, and *x*<sub>5</sub>\], and \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, *x*<sub>5</sub>, and *x*<sub>6</sub>\] stem from the Gaussian based on *μ*<sub>0</sub> (red), respectively. For groups b - d we assume that the expression levels \[*x*<sub>2</sub>, *x*<sub>4</sub>, and *x*<sub>6</sub>\], \[*x*<sub>2</sub> and *x*<sub>4</sub>\], and \[*x*<sub>2</sub>\] stem from the Gaussian based on *μ*<sub>1</sub> (blue), respectively.
+For group *a* we assume that all six expression levels stem from the same Gaussian distribution. In this case ,the mean *μ* and standard deviation *σ* of this Gaussian distribution (black) is equal to *μ* and *σ* of the six expression levels. For the groups b-d, we assume that all six expression levels stems from a mixture of two Gaussian distributions with independent means *μ*<sub>0</sub> and *μ*<sub>1</sub>, and one pooled standard deviation *σ*. For the groups b-d, we assume that the expression levels \[*x*<sub>1</sub>, *x*<sub>3</sub>, and *x*<sub>5</sub>\], \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, and *x*<sub>5</sub>\], and \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, *x*<sub>5</sub>, and *x*<sub>6</sub>\] stem from the Gaussian distribution based on *μ*<sub>0</sub> (red), respectively. For the groups b-d, we assume that the expression levels \[*x*<sub>2</sub>, *x*<sub>4</sub>, and *x*<sub>6</sub>\], \[*x*<sub>2</sub> and *x*<sub>4</sub>\], and \[*x*<sub>2</sub>\] stem from the Gaussian distribution based on *μ*<sub>1</sub> (blue), respectively.
 
 ``` r
 Lsets <- get.Lset()
@@ -86,7 +86,7 @@ ALL.VARs <- normDataLogLikData[['ALL.VARs']]
 
 #### <a name="ProbabilityDens"></a> Probability density plots of the Gaussian distributions
 
-As an example, we show a gene having the minimal log-likelihood for each group. As an example, For the groups *a* − *d* the examples are ABCB7, ACSL1, TPR, and ADAR, respectively. At each graphic, we plot the probability density of the Gaussian distribution for the group *a* as black curve and mark the six log2-expression values with black circles. For groups *b* − *d*, we plot with red and blue curves the probability densities of the Gaussian distributions and mark the six log2-expression values with circles which are colored according to classes for class 0 in red and for class 1 in blue.
+As an example, we show for each group a gene having the minimum log-likelihood. For the groups *a* − *d*, the examples are ABCB7, ACSL1, TPR, and ADAR, respectively. In each figure, we plot the probability density of the Gaussian distribution for the group *a* as a black curve and mark the six log2-expression values with black circles. For groups *b* − *d*, we plot with red and blue curves the probability densities of the Gaussian distributions and mark the six log2-expression values with circles, which are colored according to classes for class 0 in red and for class 1 in blue.
 
 ``` r
 GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
@@ -102,7 +102,7 @@ grid.arrange( tmpPlot$a + theme(legend.position = "none"),
 
 ### <a name="BIC"></a> Calculating Bayesian Information Criterion of the log-likelihood
 
-Performing classification through model selection based on minimum log-likelihood is problematic when the number of free model parameters is not identical among all models under comparison. In the present work, model *a* has two free model parameters, while models *b*, *c*, and *d* have three. Hence, a naive classification based on a minimum log-likelihood criterion would give a spurious advantage to models *b*, *c*, and *d* with three free model parameters over model *a* with only two parameters. In order to eliminate that spurious advantage, we compute marginal likelihoods *p*(*x*|*z*) using the approximation of Schwarz et al. commonly referred to as Bayesian Information Criterion.
+Performing classification through model selection based on minimum log-likelihood is problematic when the number of free model parameters is not identical among all models under comparison. Here, model *a* has two free model parameters, while models *b*, *c*, and *d* have three. Hence, a naive classification based on a minimum log-likelihood criterion would give a spurious advantage to models *b*, *c*, and *d* with three free model parameters over model *a* with only two free parameters.To eliminate that spurious advantage, we compute marginal likelihoods *p*(*x*|*z*) using the approximation of Schwarz et al. commonly referred to as Bayesian Information Criterion.
 
 ``` r
 npar <- sapply(Lsets, function(x) sum(!sapply(x,is.null ) )) + 1  ## number parameters for log-likelihood -> mean + var 
@@ -125,7 +125,7 @@ normDataBIC <- get.IC(normDataLogLik , npar, k , IC = 'BIC')
 
 ### <a name="Posterior"></a> Approximating posterior by the Bayesian Information Criterion
 
-We assume that 70% of all genes are not regulated by EGF, so we define the prior probability for group a by *p*(*a*)=0.70, and we further assume that the remaining 30% of the genes fall equally in groups with EGF-regulation, so we define the prior probabilities for groups *b*, *c*, and *d* by *p*(*b*)=*p*(*c*)=*p*(*d*)=0.1. We can compute for *z* ∈ {*a*, *b*, *c*, *d*} the posterior *p*(*z*|*x*)≈*p*(*x*|*z*)⋅*p*(*z*) and then performed Bayesian model selection by assigning each gene to that group *z* with the maximum approximate posterior *p*(*z*|*x*).
+We assume that 70% of all genes are not regulated by EGF, so we define the prior probability for group a by *p*(*a*)=0.70. Further, we assume that the remaining 30% of the genes fall equally in groups with EGF-regulation, so we define the prior probabilities for groups *b*, *c*, and *d* by *p*(*b*)=*p*(*c*)=*p*(*d*)=0.1. We can compute for *z* ∈ {*a*, *b*, *c*, *d*} the posterior *p*(*z*|*x*)≈*p*(*x*|*z*)⋅*p*(*z*) and then perform Bayesian model selection by assigning each gene to that group *z* with the maximum approximate posterior *p*(*z*|*x*).
 
 ``` r
 normDataPosterior <- get.Posterior( normDataBIC ,Pis = c(0.7,0.1,0.1,0.1))
@@ -145,7 +145,7 @@ PostClass <- get.gene.group(data = normDataPosterior,indexing = "maximal",filter
 <a name="Comapre"></a> Identification of genes belonging to group c
 -------------------------------------------------------------------
 
-Genes of group *c* are putative target genes regulated by EGFR isoforms II-IV and not by other receptors.
+Genes of the group *c* are putative target genes regulated by EGFR isoforms II-IV and not by other receptors.
 
 ### <a name="GrC"></a> Examples for group c
 
@@ -209,7 +209,7 @@ TPR       ILMN_1730999   c1     8.384344   0.0213682  TPR::ILMN_1730999
 -->
 ### <a name="FCplot"></a> Log2 fold changes of Illumina data vs RT-qPCR
 
-We have found that the six log<sub>2</sub>-fold changes of the Illumina microarray expression levels and those of the qPCR expression levels show a Pearson correlation coefficient of 0.99 (p-value = 0.00002), suggesting that the set of 1,140 genes might possibly contain some further putative target genes of isoforms II-IV of the epidermal growth factor receptor in tumor cells.
+We have found that the six log<sub>2</sub>-fold changes of the Illumina microarray expression levels, and those of the qPCR expression levels show a Pearson correlation coefficient of 0.99 (p-value = 0.00002). Therefor, we can suggest that the set of 1,140 genes might contain some further putative target genes of isoforms II-IV of the epidermal growth factor receptor in tumor cells.
 
     ## 
     ##  Pearson's product-moment correlation
