@@ -8,4 +8,6 @@ Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappl
 [Reproducible script for the publication](./ReproducibleScript.md)
 
 ### Paper Draft
-[publication pdf](./Regulatory targets of epidermal growth factor receptor alternative isoforms in a glioblastoma cell line.pdf)
+
+[publication pdf](./Regulatory_targets_of_epidermal_growth_factor_receptor_alternative_isoforms_in_a_glioblastoma_cell_line.pdf)
+

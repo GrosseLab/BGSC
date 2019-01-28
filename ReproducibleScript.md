@@ -23,7 +23,7 @@ Contents
     -   [Calculating the log-likelihood for each gene in each group](#CalculatingLik)
     -   [Calculating Bayesian Information Criterion of the log-likelihood](#BIC)
     -   [Approximating posterior by the Bayesian Information Criterion](#Posterior)
--   [Identification of genes belonging to group c](#Comapre)
+-   [Identification of genes belonging to group c](#Compare)
     -   [Examples for group c](#GrC)
     -   [Fold changes plot of Illumina data vs RT-qPCR](#FCplot)
 
@@ -74,14 +74,22 @@ We define that:
 
 ### <a name="CalculatingLik"></a> Calculating the log-likelihood for each gene in each group (a, b, c, and d)
 
+Experimental design where the rows present the RNAi treatment -- without RNAi, RNAi with siRNA<sub>*I*</sub>, and RNAi with siRNA<sub>*A**L**L*</sub> -- and the columns present the EGF treatment. The six corresponding logarithmic expression values per gene are denoted by *x*<sub>1</sub>, …, *x*<sub>6</sub>.
+
+|                                   | no EGF          | EGF             |
+|-----------------------------------|-----------------|-----------------|
+| no RNAi                           | *x*<sub>1</sub> | *x*<sub>2</sub> |
+| RNAi by siRNA<sub>*I*</sub>       | *x*<sub>3</sub> | *x*<sub>4</sub> |
+| RNAi by siRNA<sub>*A**L**L*</sub> | *x*<sub>5</sub> | *x*<sub>6</sub> |
+
 For group *a* we assume that all six expression levels stem from the same Gaussian distribution. In this case ,the mean *μ* and standard deviation *σ* of this Gaussian distribution (black) is equal to *μ* and *σ* of the six expression levels. For the groups b-d, we assume that all six expression levels stems from a mixture of two Gaussian distributions with independent means *μ*<sub>0</sub> and *μ*<sub>1</sub>, and one pooled standard deviation *σ*. For the groups b-d, we assume that the expression levels \[*x*<sub>1</sub>, *x*<sub>3</sub>, and *x*<sub>5</sub>\], \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, and *x*<sub>5</sub>\], and \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, *x*<sub>5</sub>, and *x*<sub>6</sub>\] stem from the Gaussian distribution based on *μ*<sub>0</sub> (red), respectively. For the groups b-d, we assume that the expression levels \[*x*<sub>2</sub>, *x*<sub>4</sub>, and *x*<sub>6</sub>\], \[*x*<sub>2</sub> and *x*<sub>4</sub>\], and \[*x*<sub>2</sub>\] stem from the Gaussian distribution based on *μ*<sub>1</sub> (blue), respectively.
 
 ``` r
-Lsets <- get.Lset()
-normDataLogLikData <- logLikelihoodOfnormData(normData$E)
-normDataLogLik <- normDataLogLikData[['logL']]
-ALL.MUs  <- normDataLogLikData[['ALL.MUs']]
-ALL.VARs <- normDataLogLikData[['ALL.VARs']]
+Lsets <- get.Lset() #getting a list with the schematic expression pattern
+normDataLogLikData <- logLikelihoodOfnormData(normData$E) #calc loglik for each gene in each group
+normDataLogLik <- normDataLogLikData[['logL']] 
+ALL.MUs  <- normDataLogLikData[['ALL.MUs']] #table with mean for each gene in each group
+ALL.VARs <- normDataLogLikData[['ALL.VARs']] #table with var for each gene in each group 
 ```
 
 #### <a name="ProbabilityDens"></a> Probability density plots of the Gaussian distributions
@@ -90,19 +98,21 @@ As an example, we show for each group a gene having the minimum log-likelihood. 
 
 ``` r
 GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
-names(GeneExample) <- c('a','b','c','d')
-tmpPlot <- purrr::map2(GeneExample,names(GeneExample),function(.x,.y) Density.NV.fit.plot(id = .x ,normData, ALL.MUs, ALL.VARs, useGroup = .y ,DOplot = FALSE) )
-grid.arrange( tmpPlot$a + theme(legend.position = "none"),
-              tmpPlot$b + theme(legend.position = "none"),
-              tmpPlot$c + theme(legend.position = "none"),
-              tmpPlot$d + theme(legend.position = "none") ,ncol=2,nrow=2)
+names(GeneExample) <- c('g1','g2','g3','g4')
+tmpPlot <- purrr::map2(GeneExample,c('a','b','c','d'),function(.x,.y) Density.NV.fit.plot(id = .x ,normData, ALL.MUs, ALL.VARs, useGroup = .y ,DOplot = FALSE) )
+grid.arrange( tmpPlot$g1 + theme(legend.position = "none"),
+              tmpPlot$g2 + theme(legend.position = "none"),
+              tmpPlot$g3 + theme(legend.position = "none"),
+              tmpPlot$g4 + theme(legend.position = "none") ,ncol = 2,nrow = 2,
+              bottom = textGrob("The group having the minimum log-likelihood is highlighted with yellow.",gp = gpar(fontsize = 12,font = 1))
+)              
 ```
 
 ![](ReproducibleScript_files/figure-markdown_github/Density-1.png)
 
 ### <a name="BIC"></a> Calculating Bayesian Information Criterion of the log-likelihood
 
-Performing classification through model selection based on minimum log-likelihood is problematic when the number of free model parameters is not identical among all models under comparison. Here, model *a* has two free model parameters, while models *b*, *c*, and *d* have three. Hence, a naive classification based on a minimum log-likelihood criterion would give a spurious advantage to models *b*, *c*, and *d* with three free model parameters over model *a* with only two free parameters.To eliminate that spurious advantage, we compute marginal likelihoods *p*(*x*|*z*) using the approximation of Schwarz et al. commonly referred to as Bayesian Information Criterion.
+Performing classification through model selection based on minimum log-likelihood is problematic when the number of free model parameters is not identical among all models under comparison. Here, model *a* has two free model parameters, while models *b*, *c*, and *d* have three. Hence, a naive classification based on a minimum log-likelihood criterion would give a spurious advantage to models *b*, *c*, and *d* with three free model parameters over model *a* with only two free parameters. To eliminate that spurious advantage, we compute marginal likelihoods *p*(*x*|*z*) using the approximation of Schwarz et al. commonly referred to as Bayesian Information Criterion.
 
 ``` r
 npar <- sapply(Lsets, function(x) sum(!sapply(x,is.null ) )) + 1  ## number parameters for log-likelihood -> mean + var 
@@ -118,14 +128,14 @@ print(rbind(npar,k))
 normDataBIC <- get.IC(normDataLogLik , npar, k , IC = 'BIC')
 ```
 
-    ## [1] "Number of genes assigned to group with the minimal Bayesian Information Criterion"
+    ## Number of genes assigned to group with the minimal Bayesian Information Criterion
 
     ##                             a    b    c    d
     ## #genes assigned to group 3446 5646 5015 2635
 
 ### <a name="Posterior"></a> Approximating posterior by the Bayesian Information Criterion
 
-We assume that 70% of all genes are not regulated by EGF, so we define the prior probability for group a by *p*(*a*)=0.70. Further, we assume that the remaining 30% of the genes fall equally in groups with EGF-regulation, so we define the prior probabilities for groups *b*, *c*, and *d* by *p*(*b*)=*p*(*c*)=*p*(*d*)=0.1. We can compute for *z* ∈ {*a*, *b*, *c*, *d*} the posterior *p*(*z*|*x*)≈*p*(*x*|*z*)⋅*p*(*z*) and then perform Bayesian model selection by assigning each gene to that group *z* with the maximum approximate posterior *p*(*z*|*x*).
+We assume that 70% of all genes are not regulated by EGF, so we define the prior probability for group a by *p*(*a*)=0.70. Further, we assume that the remaining 30% of the genes fall equally in groups with EGF-regulation, so we define the prior probabilities for groups *b*, *c*, and *d* by *p*(*b*)=*p*(*c*)=*p*(*d*)=0.1. We can compute for *z* ∈ {*a*, *b*, *c*, *d*} the posterior *p*(*z*|*x*)≈*p*(*x*|*z*)⋅*p*(*z*) and then perform Bayesian model selection by assigning each gene to that group *z* with the maximum approximate posterior *p*(*z*|*x*). Further, we define as putative target genes for each group the subset of genes with an approximate posterior probability exceeding 0.75.
 
 ``` r
 normDataPosterior <- get.Posterior( normDataBIC ,Pis = c(0.7,0.1,0.1,0.1))
@@ -142,14 +152,14 @@ PostClass <- get.gene.group(data = normDataPosterior,indexing = "maximal",filter
     ## #genes assigned to group                 8449 3822 3143 1328
     ## #genes assigned to group with Filter0.75 4209 1868 1140  390
 
-<a name="Comapre"></a> Identification of genes belonging to group c
+<a name="Compare"></a> Identification of genes belonging to group c
 -------------------------------------------------------------------
 
 Genes of the group *c* are putative target genes regulated by EGFR isoforms II-IV and not by other receptors.
 
 ### <a name="GrC"></a> Examples for group c
 
-After calculating the log2-fold change for group *c* by *μ*<sub>*c*1</sub> - *μ*<sub>*c*0</sub>, we validated three up-regulated genes, namely CKAP2L, ROCK1, and TPR and three down-regulated genes, namely ALDH4A1, CLCA2, and GALNS.
+After calculating the log2-fold change for group *c* by \[*μ*<sub>*c*1</sub> - *μ*<sub>*c*0</sub>\], we validated three up-regulated genes, namely CKAP2L, ROCK1, and TPR and three down-regulated genes, namely ALDH4A1, CLCA2, and GALNS.
 
 ``` r
     ### calculating mean and log2-fold change
@@ -174,9 +184,17 @@ c0 is red and c1 is blue ...
 -->
 #### Expression patterns
 
+We show the normalized expression for the six genes of group c. The normalized expression is shown in a similar way as the `Schematic Expression Pattern`. For three up-regulated genes (CKAP2L, ROCK1, and TPR) the expression is higher for class *c*1 (dark red) and for three down-regulated genes (ALDH4A1, CLCA2, and GALNS) the expression is lower for class *c*1 (light red).
+
 ![](ReproducibleScript_files/figure-markdown_github/groupC_ExpGenesPlot-1.png)
 
+#### Probability density plots of the Gaussian distributions
+
+We show the Probability density distributions of the log2-normalized expression for the six genes of group c. ![](ReproducibleScript_files/figure-markdown_github/DensityQPCR-1.png)
+
 #### Barplot of Illumina expression data
+
+We show the log2-normalized expression of the group *c* for the six genes.
 
     ##    GeneName   IlluminaID   meanC1   meanC0 log2-fold change
     ## 1:   CKAP2L ILMN_1751776 8.997306 7.786610        1.2106958
@@ -209,7 +227,7 @@ TPR       ILMN_1730999   c1     8.384344   0.0213682  TPR::ILMN_1730999
 -->
 ### <a name="FCplot"></a> Log2 fold changes of Illumina data vs RT-qPCR
 
-We have found that the six log<sub>2</sub>-fold changes of the Illumina microarray expression levels, and those of the qPCR expression levels show a Pearson correlation coefficient of 0.99 (p-value = 0.00002). Therefor, we can suggest that the set of 1,140 genes might contain some further putative target genes of isoforms II-IV of the epidermal growth factor receptor in tumor cells.
+We have found that the six log<sub>2</sub>-fold changes of the Illumina microarray expression levels, and those of the qPCR expression levels show a Pearson correlation coefficient of 0.99 (p-value = 0.00002). Therefore, we can suggest that the set of 1,140 genes might contain some further putative target genes of isoforms II-IV of the epidermal growth factor receptor in tumor cells.
 
     ## 
     ##  Pearson's product-moment correlation
@@ -224,6 +242,8 @@ We have found that the six log<sub>2</sub>-fold changes of the Illumina microarr
     ## 0.9966761
 
 ![](ReproducibleScript_files/figure-markdown_github/barplotFC-1.png)
+
+    ## data of "Comparison of Illumina data and RT-qPCR"-plot
 
 | Gene    | Set        |     FC|  stderr|
 |:--------|:-----------|------:|-------:|
@@ -242,7 +262,7 @@ We have found that the six log<sub>2</sub>-fold changes of the Illumina microarr
 
     ## R version 3.4.1 (2017-06-30)
     ## Platform: x86_64-apple-darwin15.6.0 (64-bit)
-    ## Running under: macOS High Sierra 10.13.4
+    ## Running under: macOS  10.14.2
     ## 
     ## Matrix products: default
     ## BLAS: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRblas.0.dylib
@@ -265,7 +285,7 @@ We have found that the six log<sub>2</sub>-fold changes of the Illumina microarr
     ##  [4] compiler_3.4.1       pillar_1.1.0         futile.logger_1.4.3 
     ##  [7] plyr_1.8.4           futile.options_1.0.0 bitops_1.0-6        
     ## [10] tools_3.4.1          digest_0.6.15        evaluate_0.10.1     
-    ## [13] tibble_1.4.2         rlang_0.1.6          yaml_2.1.16         
+    ## [13] tibble_1.4.2         rlang_0.3.1          yaml_2.1.16         
     ## [16] VennDiagram_1.6.18   stringr_1.2.0        knitr_1.19          
     ## [19] gtools_3.5.0         caTools_1.17.1       rprojroot_1.3-2     
     ## [22] plotrix_3.7          rmarkdown_1.8        pheatmap_1.0.8      

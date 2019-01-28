@@ -1,32 +1,23 @@
 #-------------------------------------------
-#' @title Venndiagramm Wrapper 
+#' @title Venndiagramm wrapper 
 #' @author Claus Weinholdt
-#' @description Venndiagramm for list
+#' @description Venndiagramm for 2-Set
 #' @param inList is list
 #' @param VennPlot is boolean to enable venn plot
-#' @param VennOut is boolean to enable return of venn-plot object
+#' @param VennOut is boolean to enable venn plot
 #' @export
-f.input.list <- function(inList, VennPlot = TRUE, VennOut = FALSE){
+f.input.list <- function(inList,VennPlot=TRUE,VennOut=FALSE){
   
   N <- names(inList)
   
-  if( length(5) <= 5){
-    return(
-      switch( 
-         as.character(length( N )),  
-         "2" = f.input2(inList[[1]],inList[[2]],
-                        name=N,plotVENN=VennPlot),
-         "3" = f.input3(inList[[1]],inList[[2]],inList[[3]],
-                        name=N,plotVENN=VennPlot,vennOut=VennOut),
-         "4" = f.input4(inList[[1]],inList[[2]],inList[[3]],inList[[4]],
-                        name=N,plotVENN=VennPlot,vennOut=VennOut),
-         "5" = f.input5(inList[[1]],inList[[2]],inList[[3]],inList[[4]],inList[[5]],
-                        name=N,plotVENN=VennPlot,vennOut=VennOut)
-      )
-    )  
-  }else{
-    return('max 5 set')
-  }
+  switch( 
+     as.character(length( N )),  
+     "2"=f.input2(inList[[1]],inList[[2]],name=N,plotVENN=VennPlot),
+     "3"=f.input3(inList[[1]],inList[[2]],inList[[3]],name=N,plotVENN=VennPlot,vennOut=VennOut),
+     "4"=f.input4(inList[[1]],inList[[2]],inList[[3]],inList[[4]],name=N,plotVENN=VennPlot,vennOut=VennOut),
+     "5"=f.input5(inList[[1]],inList[[2]],inList[[3]],inList[[4]],inList[[5]],name=N,plotVENN=VennPlot,vennOut=VennOut)
+  )
+  
   
 }
 
@@ -39,29 +30,30 @@ f.input.list <- function(inList, VennPlot = TRUE, VennOut = FALSE){
 #' @param l2 is the 2. set
 #' @param name vector with names of sets
 #' @param plotVENN is boolean to enable venn plot
-#' @import gplots
 #' @export
-f.input2 = function(l1,l2,name = c("A","B"), plotVENN = TRUE){
-  
-  input  <- list("A" = l1,"B" = l2)
-  names(input) <- name
+f.input2 = function (l1,l2,name=c("A","B"),plotVENN=TRUE){
+  # require(gplots)
+  input <- list(A=l1,B=l2)
+  names(input)<-name
   
   input <- lapply(input,function(x) 
-    if (length(x) == 1) {
-      if (nchar(x) == 0) {NULL }
+    if(length(x)==1){
+      if(nchar(x)==0){NULL }
       else{x}
-    } else{x})
+    }else{x})
   
-  if (sum(sapply(input,function(x) is.null(x) ) ) == length(input)) { return(NULL)  }
+  if(sum(sapply(input,function(x) is.null(x) ) ) == length(input)){
+    return(NULL)
+  }
   
   #print(input)
-  if (plotVENN) { gplots::venn(input) }
+  if(plotVENN){ gplots::venn(input) }
   
-  i  <- intersect(input[[1]],input[[2]])
-  s1 <- setdiff(input[[1]],input[[2]])
-  s2 <- setdiff(input[[2]],input[[1]])
+  i<-intersect(input[[1]],input[[2]])
+  s1<-setdiff(input[[1]],input[[2]])
+  s2<-setdiff(input[[2]],input[[1]])
   
-  return(list("inter" = i,"diffAB" = s1,"diffBA" = s2))
+  return(list(inter=i,diffAB=s1,diffBA=s2))
 }
 
 #-------------------------------------------
@@ -73,58 +65,63 @@ f.input2 = function(l1,l2,name = c("A","B"), plotVENN = TRUE){
 #' @param l3 is the 3. set
 #' @param name vector with names of sets
 #' @param plotVENN is boolean to enable venn plot
-#' @param vennOut is boolean to enable return of venn-plot object
-#' @import gplots
+#' @param vennOut is boolean getting venn object or intersecting list
 #' @export
-f.input3 = function(l1,l2,l3,name=c("A","B","C"), plotVENN = TRUE, vennOut = FALSE){
+f.input3 = function (l1,l2,l3,name=c("A","B","C"),plotVENN=TRUE,vennOut=FALSE){
+  # require(gplots)
   
-  input  <- list("A" = l1,"B" = l2,"C" = l3)
-  names(input) <- name
+  input <- list(A=l1,B=l2,C=l3)
+  names(input)<-name
   #print(input)
   
   input <- lapply(input,function(x) 
-    if (length(x) == 1) {
-      if (nchar(x) == 0) { NULL }
+    if(length(x)==1){
+      if(nchar(x)==0){NULL }
       else{x}
     }else{x})
   
-  if (sum(sapply(input,function(x) is.null(x) ) ) == length(input)) { return(NULL) }
+  if(sum(sapply(input,function(x) is.null(x) ) ) == length(input)){
+    return(NULL)
+  }
   
-  if (plotVENN) { ve <- gplots::venn(input) }
+  if(plotVENN){ ve <- gplots::venn(input) }
   
-  if (vennOut) { return(ve)  } else {return(intersect3(l1,l2,l3))}
+  if(vennOut){ return(ve) 
+  } else { return(intersect3(l1,l2,l3)) }
 }
 
-#-------------------------------------------
+
 #' @title Venndiagramm 4-Set
 #' @description Venndiagramm for 4-Set
 #' @author Claus Weinholdt
 #' @param l1 is the 1. set
 #' @param l2 is the 2. set
 #' @param l3 is the 3. set
-#' @param l4 is the 3. set 
+#' @param l4 is the 4. set
 #' @param name vector with names of sets
 #' @param plotVENN is boolean to enable venn plot
-#' @param vennOut is boolean to enable return of venn-plot object
-#' @import gplots
+#' @param vennOut is boolean getting venn object or intersecting list
 #' @export
-f.input4 = function(l1,l2,l3,l4,name=c("A","B","C","D"), plotVENN = TRUE, vennOut = FALSE){
+f.input4 = function (l1,l2,l3,l4,name=c("A","B","C","D"),plotVENN=TRUE,vennOut=FALSE){
+  # require(gplots)
   
-  input  <- list("A" = l1,"B" = l2,"C" = l3,"D" = l4)
-  names(input) <- name
+  input <- list(A=l1,B=l2,C=l3,D=l4)
+  names(input)<-name
   
   input <- lapply(input,function(x) 
-    if (length(x) == 1) {
-      if (nchar(x) == 0) {NULL }
+    if(length(x)==1){
+      if(nchar(x)==0){NULL }
       else{x}
-    } else{x})
+    }else{x})
   
-  if (sum(sapply(input,function(x) is.null(x) ) ) == length(input)) { return(NULL) }
+  if(sum(sapply(input,function(x) is.null(x) ) ) == length(input)){
+    return(NULL)
+  }
   
   #if(plotVENN){ gplots::venn(input,simplify=TRUE) }
-  if (plotVENN){ gplots::venn(input,simplify=FALSE) }
+  if(plotVENN){ gplots::venn(input,simplify=FALSE) }
   
-  if (vennOut){ 
+  if(vennOut){ 
     ve <- gplots::venn(input,show.plot = F)
     return(ve)  
   } else { 
@@ -133,38 +130,39 @@ f.input4 = function(l1,l2,l3,l4,name=c("A","B","C","D"), plotVENN = TRUE, vennOu
   
 }
 
-#-------------------------------------------
 #' @title Venndiagramm 5-Set
 #' @description Venndiagramm for 5-Set
 #' @author Claus Weinholdt
 #' @param l1 is the 1. set
 #' @param l2 is the 2. set
 #' @param l3 is the 3. set
-#' @param l4 is the 3. set 
-#' @param l5 is the 5. set 
+#' @param l4 is the 4. set
+#' @param l5 is the 5. set
 #' @param name vector with names of sets
 #' @param plotVENN is boolean to enable venn plot
-#' @param vennOut is boolean to enable return of venn-plot object
-#' @import gplots
+#' @param vennOut is boolean getting venn object or intersecting list
 #' @export
-f.input5 = function(l1,l2,l3,l4,l5,name=c("A","B","C","D","E"), plotVENN = TRUE, vennOut = FALSE){
-
-  input  <- list("A" = l1,"B" = l2,"C" = l3,"D" = l4,"E" = l5)
-  names(input) <- name
+f.input5 = function (l1,l2,l3,l4,l5,name=c("A","B","C","D","E"),plotVENN=TRUE,vennOut=FALSE){
+  # require(gplots)
+  
+  input <- list(A=l1,B=l2,C=l3,D=l4,E=l5)
+  names(input)<-name
   
   input <- lapply(input,function(x) 
-    if (length(x) == 1) {
-      if (nchar(x) == 0) {NULL}
+    if(length(x)==1){
+      if(nchar(x)==0){NULL }
       else{x}
-    } else{x})
+    }else{x})
   
-  if (sum(sapply(input,function(x) is.null(x) ) ) == length(input)) {return(NULL)}
+  if(sum(sapply(input,function(x) is.null(x) ) ) == length(input)){
+    return(NULL)
+  }
   
-  if (plotVENN) { gplots::venn(input,simplify = FALSE) }
+  if(plotVENN){ gplots::venn(input,simplify=FALSE) }
   #print(input)
   
   
-  if (vennOut) { 
+  if(vennOut){ 
     ve <- gplots::venn(input,show.plot = F)
     return(ve)  
   } else { 
@@ -174,103 +172,92 @@ f.input5 = function(l1,l2,l3,l4,l5,name=c("A","B","C","D","E"), plotVENN = TRUE,
   
 }
 
-#-------------------------------------------
 #' @title intersect 3-Set
 #' @description intersect for 3-Set
 #' @author Claus Weinholdt
-#' @param l1 is the 1. set
-#' @param l2 is the 2. set
-#' @param l3 is the 3. set
-#' @author Claus Weinholdt
+#' @param A is the 1. set
+#' @param B is the 2. set
+#' @param C is the 3. set
 #' @export
-intersect3<-function(l1,l2,l3){
-  # O<-intersect(A,intersect(B,intersect(C,intersect(D,E))))
-  O <- base::Reduce(intersect,list(l1,l2,l3))
+intersect3<-function(A,B,C){
+  # O<-intersect(A,intersect(B,C))
+  O <- Reduce(intersect,list(A,B,C))
   return(O)
 }
 
-#-------------------------------------------
 #' @title intersect 4-Set
 #' @description intersect for 4-Set
 #' @author Claus Weinholdt
-#' @param l1 is the 1. set
-#' @param l2 is the 2. set
-#' @param l3 is the 3. set
-#' @param l4 is the 4. set 
-#' @author Claus Weinholdt
+#' @param A is the 1. set
+#' @param B is the 2. set
+#' @param C is the 3. set
+#' @param D is the 4. set
 #' @export
-intersect4<-function(l1,l2,l3,l4){
-  # O<-intersect(A,intersect(B,intersect(C,intersect(D,E))))
-  O <- base::Reduce(intersect,list(l1,l2,l3,l4))
+intersect4<-function(A,B,C,D){
+  # O<-intersect(A,intersect(B,intersect(C,D)))
+  O <- Reduce(intersect,list(A,B,C,D))
   return(O)
 }
 
-#-------------------------------------------
 #' @title intersect 5-Set
 #' @description intersect for 5-Set
 #' @author Claus Weinholdt
-#' @param l1 is the 1. set
-#' @param l2 is the 2. set
-#' @param l3 is the 3. set
-#' @param l4 is the 4. set 
-#' @param l5 is the 5. set 
-#' @author Claus Weinholdt
+#' @param A is the 1. set
+#' @param B is the 2. set
+#' @param C is the 3. set
+#' @param D is the 4. set
+#' @param E is the 5. set
 #' @export
-intersect5<-function(l1,l2,l3,l4,l5){
+intersect5<-function(A,B,C,D,E){
   # O<-intersect(A,intersect(B,intersect(C,intersect(D,E))))
-  O <- base::Reduce(intersect,list(l1,l2,l3,l4,l5))
+  O <- Reduce(intersect,list(A,B,C,D,E))
   return(O)
 }
 
-#-------------------------------------------
 #' @title union 3-Set
 #' @description union for 3-Set
 #' @author Claus Weinholdt
-#' @param l1 is the 1. set
-#' @param l2 is the 2. set
-#' @param l3 is the 3. set
-#' @author Claus Weinholdt
+#' @param A is the 1. set
+#' @param B is the 2. set
+#' @param C is the 3. set
 #' @export
-union3 <- function(l1,l2,l3){
-  O <- base::Reduce(base::union,list(l1,l2,l3))
+union3<-function(A,B,C){
+  # O<-union(A,union(B,C))
+  O <- Reduce(union,list(A,B,C))
   return(O)
 }
 
-#-------------------------------------------
 #' @title union 4-Set
 #' @description union for 4-Set
 #' @author Claus Weinholdt
-#' @param l1 is the 1. set
-#' @param l2 is the 2. set
-#' @param l3 is the 3. set
-#' @param l4 is the 4. set 
-#' @author Claus Weinholdt
+#' @param A is the 1. set
+#' @param B is the 2. set
+#' @param C is the 3. set
+#' @param D is the 4. set
 #' @export
-union4 <- function(l1,l2,l3,l4){
-  O <- base::Reduce(base::union,list(l1,l2,l3,l4))
+union4<-function(A,B,C,D){
+  # O<-union(A,union(B,union(C,D)))
+  O <- Reduce(union,list(A,B,C,D))
   return(O)
 }
 
-#-------------------------------------------
 #' @title union 5-Set
 #' @description union for 5-Set
 #' @author Claus Weinholdt
-#' @param l1 is the 1. set
-#' @param l2 is the 2. set
-#' @param l3 is the 3. set
-#' @param l4 is the 4. set 
-#' @param l5 is the 5. set 
-#' @author Claus Weinholdt
+#' @param A is the 1. set
+#' @param B is the 2. set
+#' @param C is the 3. set
+#' @param D is the 4. set
+#' @param E is the 5. set
 #' @export
-union5<-function(l1,l2,l3,l4,l5){
-  O <- base::Reduce(base::union,list(l1,l2,l3,l4,l5))
+union5<-function(A,B,C,D,E){
+  # O<-union(A,union(B,union(C,union(D,E))))
+  O <- Reduce(intersect,list(A,B,C,D,E))
   return(O)
 }
 
-#-------------------------------------------
-#' @import VennDiagram
 f.input5.pretty = function (p,q,r,s,e,name,VennName=""){
-  input  <-list(A=p,B=q,C=r,D=s,E=e)
+  input <- list(A=p,B=q,C=r,D=s,E=e)
   names(input)<-name
   
   # require("VennDiagram")
@@ -290,10 +277,8 @@ f.input5.pretty = function (p,q,r,s,e,name,VennName=""){
   return(input)  
 }
 
-#-------------------------------------------
-#' @import VennDiagram
 f.input4.pretty = function (p,q,r,s,name,VennName=""){
-  input  <-list(A=p,B=q,C=r,D=s)
+  input <- list(A=p,B=q,C=r,D=s)
   names(input)<-name
   
   # require("VennDiagram")

@@ -2,7 +2,7 @@
 % Please edit documentation in R/VennFunction.R
 \name{f.input.list}
 \alias{f.input.list}
-\title{Venndiagramm Wrapper}
+\title{Venndiagramm wrapper}
 \usage{
 f.input.list(inList, VennPlot = TRUE, VennOut = FALSE)
 }
@@ -11,10 +11,10 @@ f.input.list(inList, VennPlot = TRUE, VennOut = FALSE)
 
 \item{VennPlot}{is boolean to enable venn plot}
 
-\item{VennOut}{is boolean to enable return of venn-plot object}
+\item{VennOut}{is boolean to enable venn plot}
 }
 \description{
-Venndiagramm for list
+Venndiagramm for 2-Set
 }
 \author{
 Claus Weinholdt

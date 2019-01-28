@@ -18,7 +18,7 @@ f.input3(l1, l2, l3, name = c("A", "B", "C"), plotVENN = TRUE,
 
 \item{plotVENN}{is boolean to enable venn plot}
 
-\item{vennOut}{is boolean to enable return of venn-plot object}
+\item{vennOut}{is boolean getting venn object or intersecting list}
 }
 \description{
 Venndiagramm for 3-Set

@@ -14,13 +14,13 @@ f.input4(l1, l2, l3, l4, name = c("A", "B", "C", "D"), plotVENN = TRUE,
 
 \item{l3}{is the 3. set}
 
-\item{l4}{is the 3. set}
+\item{l4}{is the 4. set}
 
 \item{name}{vector with names of sets}
 
 \item{plotVENN}{is boolean to enable venn plot}
 
-\item{vennOut}{is boolean to enable return of venn-plot object}
+\item{vennOut}{is boolean getting venn object or intersecting list}
 }
 \description{
 Venndiagramm for 4-Set
