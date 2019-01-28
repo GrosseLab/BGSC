@@ -370,7 +370,7 @@ get.gene.group <- function(data, indexing="maximal", filter=0.75, DoPlot=FALSE){
   if(DoPlot){
     print("Histograms of approximate posterior")
     par(mfrow=c(2,2))
-    for(i in names(res)) { hist(res[[i]][,i],50,main = paste0('group ',i),xlab = "approximate posterior") ; abline(v = filter,col = 2)}
+    for(i in names(res)) { hist(res[[i]][,i],50,main = paste0('group ',i),xlab = "approximate posterior",xlim = c(0,1)) ; abline(v = filter,col = 2)}
     par(mfrow=c(1,1))
   }
   tmp <- rbind("#genes assigned to group" = sapply(res, nrow),"Filter" = sapply(resFilter, nrow) )
@@ -497,7 +497,7 @@ Density.NV.fit.plot <- function(id, normData, ALL.MUs, ALL.VARs, useGroup = NA, 
   pg.s <- sqrt(ALL.VARs[id,]); names(pg.s) <- colnames(ALL.VARs)
   
   logE = normData$E[id,]
-  tmp = data.frame(logE=rep(logE,4),
+  tmp = data.frame(logE = rep(logE,4),
                    density = rep( 0, length(rep(logE,4))),
                    group    = c( rep('a',6),rep('b',6),rep('c',6),rep('d',6) ),
                    # indicator = factor(c( rep(0,6) , c(0,1,0,1,0,1), c(0,1,0,0,0,1) ,c(0,1,0,0,0,0) ))
@@ -511,7 +511,7 @@ Density.NV.fit.plot <- function(id, normData, ALL.MUs, ALL.VARs, useGroup = NA, 
     max(dnorm(x,mean =  pg.M['c1'], sd = pg.s['c'])),
     max(dnorm(x,mean =  pg.M['d1'], sd = pg.s['d'])) )+0.5) 
   
-  col2= RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
+  col2 = RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
   
   .thememap <- function(base_size = 12, legend_key_size = 0.4, base_family = "", col = "grey70") {
     ggplot2::theme_gray(base_size = base_size, base_family = base_family) %+replace% 
@@ -543,9 +543,9 @@ Density.NV.fit.plot <- function(id, normData, ALL.MUs, ALL.VARs, useGroup = NA, 
   }
   
   ymax <- 0
-  if( max(logE,na.rm = T) > 0 )   ymax = max(logE,na.rm = T) else ymax = 1  
+  if ( max(logE,na.rm = T) > 0 ) ymax = max(logE,na.rm = T) else ymax = 1  
   ymin <- -0
-  if( min(logE,na.rm = T) > 0)   ymin = min(logE,na.rm = T) else ymin = 0  
+  if ( min(logE,na.rm = T) > 0) ymin = min(logE,na.rm = T) else ymin = 0  
   Lims <- c( floor(ymin) - 2  , ceiling(ymax) + 2 )
   
   
@@ -786,16 +786,42 @@ PIS_Study <- function(normDataBIC, qgenesIDs){
               "P40"=c(0.4  ,0.2  ,0.2   ,0.2),
               "P25"=c(0.25 ,0.25 ,0.25  ,0.25)
   )
+
   PostClassPis  <- lapply(PIS, function(Pis){  
     tmp <- get.Posterior( normDataBIC ,Pis) 
+    get.gene.group(data=tmp,indexing = "maximal",filter = 0.24, DoPlot=TRUE) 
+  })
+  
+  numA <- sapply(PostClassPis,function(x) length(rownames(x$resFilter$a) ))
+  numB <- sapply(PostClassPis,function(x) length(rownames(x$resFilter$b) ))
+  numC <- sapply(PostClassPis,function(x) length(rownames(x$resFilter$c) ))
+  numD <- sapply(PostClassPis,function(x) length(rownames(x$resFilter$d) ))
+  
+  PiNum <- cbind('a'=numA,'b'=numB,'c'=numC,'d'=numD)
+  rowSums(PiNum)
+  barplot(t(PiNum),beside = F,legend.text = colnames(PiNum),main="all",col = RColorBrewer::brewer.pal(4,"Set1") )
+  barplot(t(PiNum),beside = T,legend.text = colnames(PiNum),main="all",col = RColorBrewer::brewer.pal(4,"Set1") )
+  
+  PostClassPis075  <- lapply(PIS, function(Pis){  
+    tmp <- get.Posterior( normDataBIC ,Pis) 
     print(Pis)
-    get.gene.group(data=tmp,indexing="maximal",filter = 0.75, DoPlot=TRUE) 
+    get.gene.group(data=tmp,indexing = "maximal",filter = 0.75, DoPlot=TRUE) 
     
   })
   
-  print(lapply(PostClassPis,function(x) x$res$c[as.character(do.call(c,qgenesIDs)),]))
-  tmp <- f.input.list(lapply(PostClassPis,function(x) rownames(x$resFilter$c) )[-1])
-  tmp <- f.input.list(lapply(PostClassPis,function(x) rownames(x$resFilter$c) )[-6])
+  print(lapply(PostClassPis075,function(x) x$res$c[as.character(do.call(c,qgenesIDs)),]))
+  tmp <- f.input.list(lapply(PostClassPis075,function(x) rownames(x$resFilter$c) )[-1])
+  tmp <- f.input.list(lapply(PostClassPis075,function(x) rownames(x$resFilter$c) )[-6])
+  
+  numA <- sapply(PostClassPis075,function(x) length(rownames(x$resFilter$a) ))
+  numB <- sapply(PostClassPis075,function(x) length(rownames(x$resFilter$b) ))
+  numC <- sapply(PostClassPis075,function(x) length(rownames(x$resFilter$c) ))
+  numD <- sapply(PostClassPis075,function(x) length(rownames(x$resFilter$d) ))
+  
+  PiNum075 <- cbind('a'=numA,'b'=numB,'c'=numC,'d'=numD)
+  rowSums(PiNum075)
+  barplot(t(PiNum075),beside = F,legend.text = colnames(PiNum),main="filter 0.75",col = RColorBrewer::brewer.pal(4,"Set1") )
+  barplot(t(PiNum075),beside = T,legend.text = colnames(PiNum),main="filter 0.75",col = RColorBrewer::brewer.pal(4,"Set1") )
   
   return(PostClassPis)
 }

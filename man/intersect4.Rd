@@ -4,22 +4,20 @@
 \alias{intersect4}
 \title{intersect 4-Set}
 \usage{
-intersect4(l1, l2, l3, l4)
+intersect4(A, B, C, D)
 }
 \arguments{
-\item{l1}{is the 1. set}
+\item{A}{is the 1. set}
 
-\item{l2}{is the 2. set}
+\item{B}{is the 2. set}
 
-\item{l3}{is the 3. set}
+\item{C}{is the 3. set}
 
-\item{l4}{is the 4. set}
+\item{D}{is the 4. set}
 }
 \description{
 intersect for 4-Set
 }
 \author{
-Claus Weinholdt
-
 Claus Weinholdt
 }

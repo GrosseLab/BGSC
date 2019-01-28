@@ -4,20 +4,18 @@
 \alias{union3}
 \title{union 3-Set}
 \usage{
-union3(l1, l2, l3)
+union3(A, B, C)
 }
 \arguments{
-\item{l1}{is the 1. set}
+\item{A}{is the 1. set}
 
-\item{l2}{is the 2. set}
+\item{B}{is the 2. set}
 
-\item{l3}{is the 3. set}
+\item{C}{is the 3. set}
 }
 \description{
 union for 3-Set
 }
 \author{
-Claus Weinholdt
-
 Claus Weinholdt
 }

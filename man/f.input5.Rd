@@ -14,7 +14,7 @@ f.input5(l1, l2, l3, l4, l5, name = c("A", "B", "C", "D", "E"),
 
 \item{l3}{is the 3. set}
 
-\item{l4}{is the 3. set}
+\item{l4}{is the 4. set}
 
 \item{l5}{is the 5. set}
 
@@ -22,7 +22,7 @@ f.input5(l1, l2, l3, l4, l5, name = c("A", "B", "C", "D", "E"),
 
 \item{plotVENN}{is boolean to enable venn plot}
 
-\item{vennOut}{is boolean to enable return of venn-plot object}
+\item{vennOut}{is boolean getting venn object or intersecting list}
 }
 \description{
 Venndiagramm for 5-Set
