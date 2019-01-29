@@ -1,7 +1,7 @@
 Reproducible script for the publication
 ================
 Weinholdt Claus
-2018-05-29
+2019-01-29
 
 <!--   html_document:
     toc: true
@@ -9,7 +9,7 @@ Weinholdt Claus
   pdf_document:
     toc: true
     highlight: zenburn -->
-Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse **Regulatory targets of epidermal growth factor receptor alternative isoforms in a glioblastoma cell line**
+Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse **Regulatory targets of alternative isoforms of epidermal growth factor receptor in a glioblastoma cell line**
 
 Contents
 --------
