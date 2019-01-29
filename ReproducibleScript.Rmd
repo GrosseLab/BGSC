@@ -16,7 +16,7 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse __Regulatory targets of epidermal growth factor receptor alternative isoforms in a glioblastoma cell line__
+Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse __Regulatory targets of alternative isoforms of epidermal growth factor receptor in a glioblastoma cell line__
 
 ## Contents
 
