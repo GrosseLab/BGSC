@@ -1,7 +1,7 @@
 ---
 title: "Reproducible script for the publication"
 author: "Weinholdt Claus"
-date: "2018-05-29"
+date: "2019-01-29"
 output: github_document 
 ---
 
