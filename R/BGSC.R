@@ -828,11 +828,23 @@ PIS_Study <- function(normDataBIC, qgenesIDs){
 
 # ----------------------------------------------------------------------
 makeExpData <- function() {
-  wd2 <- "/Volumes/ianvsITZroot/home/adsvy/Kappler/Kappler_Wichmann_Medizin"
-  x <- limma::read.ilmn(files=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt")  ,sep="\t",
-                        ctrlfiles=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/ControlProbeProfile_SF767-1-799-6.txt"),
+  
+  # tmpNoNo <- fread("Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt")
+  # tmpCPP <- fread("ControlProbeProfile_SF767-1-799-6.txt")
+  # tmpNoNo767 <- tmpNoNo[ , names(tmpNoNo)[!stringr::str_detect(names(tmpNoNo),'799')] , with=F]
+  # tmpCPP767 <- tmpCPP[ , names(tmpCPP)[!stringr::str_detect(names(tmpCPP),'799')] , with=F]
+  # write.table(tmpNoNo767,"Einzelanalyse_nonorm_nobkgd_SF767-1.txt",row.names = F,sep="\t",quote = F)
+  # write.table(tmpCPP767,"ControlProbeProfile_SF767-1.txt",row.names = F,sep="\t",quote = F)
+  wd2 <- '/Users/weinhol/GitHub/BGSC/'
+  x <- limma::read.ilmn(files=paste0(wd2,"Einzelanalyse_nonorm_nobkgd_SF767-1.txt")   ,sep="\t",
+                        ctrlfiles=paste0(wd2,"ControlProbeProfile_SF767-1.txt"),
                         other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS")
   )
+  # wd2 <- "/Volumes/ianvsITZroot/home/adsvy/Kappler/Kappler_Wichmann_Medizin"
+  # x <- limma::read.ilmn(files=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt")  ,sep="\t",
+  #                       ctrlfiles=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/ControlProbeProfile_SF767-1-799-6.txt"),
+  #                       other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS")
+  # )
   
   ##### 2. ### reduce to our 6 samples !!!! 
   x2<-x
