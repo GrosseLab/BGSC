@@ -9,7 +9,9 @@ The datasets analyzed during the current study are available in the BGSC reposit
 ### Script for reproducing the results
 [Reproducible script for the publication](./ReproducibleScript.md)
 
-### Paper Draft
+<!--  ### Paper Draft
 
 [publication pdf](./Regulatory_targets_of_alternative_isoforms_of_epidermal_growth_factor_receptor_in_a_glioblastoma_cell_line.pdf)
 
+ -->
+ 
