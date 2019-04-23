@@ -8,7 +8,7 @@ The datasets analyzed during the current study are available in the BGSC reposit
 The lists of genes predicted for all of the four classes can be found in the folder [PredectionResult](./PredectionResult/)
 
 ### Script for reproducing the results
-The [Reproducible Script](./ReproducibleScript.md) can be used for reproducing the results and plots of this work.
+The [Reproducible Script](./ReproducibleScript.md) can be used to reproduce the results and plots of this work.
 
 <!--  ### Paper Draft
 
