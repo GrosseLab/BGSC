@@ -4,7 +4,12 @@
 \alias{getQPCR}
 \title{getQPCR}
 \usage{
-getQPCR()
+getQPCR(set = "SF767", expressionOut = FALSE)
+}
+\arguments{
+\item{set}{define which data set is used; defalut 'SF767'}
+
+\item{expressionOut}{if TRUE return of log2 exprssion}
 }
 \value{
 a \code{data.table}

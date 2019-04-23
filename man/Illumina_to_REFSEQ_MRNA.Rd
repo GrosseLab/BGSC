@@ -3,7 +3,7 @@
 \docType{data}
 \name{Illumina_to_REFSEQ_MRNA}
 \alias{Illumina_to_REFSEQ_MRNA}
-\title{Expression data set of all qPCRs
+\title{Illumina to REFSEQ_MRNA tabel
 GEOD.adf <-  fread('Illumina HumanHT-12_V4.0_A-GEOD-13475.adf.txt')
 setnames(GEOD.adf,'Reporter Database Entry [genbank]','genbank')
 setnames(GEOD.adf,'Reporter Name','illumina_humanht_12_v4')
@@ -18,7 +18,7 @@ A dataset containing the}
 Illumina_to_REFSEQ_MRNA
 }
 \description{
-Expression data set of all qPCRs
+Illumina to REFSEQ_MRNA tabel
 GEOD.adf <-  fread('Illumina HumanHT-12_V4.0_A-GEOD-13475.adf.txt')
 setnames(GEOD.adf,'Reporter Database Entry [genbank]','genbank')
 setnames(GEOD.adf,'Reporter Name','illumina_humanht_12_v4')

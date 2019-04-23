@@ -1,0 +1,5 @@
+Nr.;Zeit;Behandlung;Zelllinie;EGFRall EX I;EGFRall EX II;EGFRall EX III;EGFRall EX IV
+1;48h;control;SF767;100;100;100;100
+2;48h;siRNA-luciferase;SF767;99;97;88;75
+6;48h;siRNA-ALL;SF767;33;36;23;19
+7;48h;siRNA-I;SF767;36;33;29;24

@@ -1,7 +1,7 @@
 
 #' Expression data set of Glioblastoma cell line SF767 
 #'
-#' A dataset containing the EListRaw objekt from limma::read.ilmn(files="Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt", ctrlfiles="ControlProbeProfile_SF767-1-799-6.txt", other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS") )
+#' A dataset containing the EListRaw objekt from limma::read.ilmn(files="Einzelanalyse_nonorm_nobkgd_SF767-1.txt", ctrlfiles="ControlProbeProfile_SF767-1.txt", other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS") )
 #' @format lists : "source" ,"E"   ,    "genes" ,  "other" ,  "targets"
 #' @format "E" is a data frame with 48209 rows and 6 variables:
 #' \describe{
@@ -14,24 +14,47 @@
 "ExpData"
 
 
-#' Expression data set of all qPCRs
+#' Delta CT values of EGF treatment for SF767 and LNZ308
 #'
 #' A dataset containing the
 #' 
-#' @format A data frame with 30 rows and 14 variables:
+#' 
+#' @format A data frame with 12 rows and 9 variables:
 #' \describe{
-#'   \item{Probe}{Name of celline}
-#'   \item{NR}{Sample number}
-#'   \item{CKAP2L_ctGen.ctRef}{deltaCt of CKAP2L}
-#'   \item{CKAP2L_relative.Werte}{relativ expression of CKAP2L}
-#'   ...
-#'   \item{GALNSctGen.ctRef}{deltaCt of GALNS}
-#'   \item{GALNSrelative.Werte}{relativ expression of GALNS}
+#'   \item{ID}{qPCR ID}
+#'   \item{CellLine}{Cell line ID}
+#'   \item{Treatment}{Treatment}
+#'   \item{GAPDH}{deltaCt of GAPDH}
+#'   \item{CKAP2L}{deltaCt of CKAP2L}
+#'   \item{ROCK1}{deltaCt of ROCK1}
+#'   \item{TPR}{deltaCt of TPR}
+#'   \item{ALDH4A1}{deltaCt of ALDH4A1}
+#'   \item{GALNS}{deltaCt of GALNS}
 #' }
 #' 
-"RawQPCRsf"
+"qPCR_SF767_LNZ308"
 
-#' Expression data set of all qPCRs
+#' Delta CT values of RNAi treatment for SF767 
+#'
+#' A dataset containing the
+#' 
+#' 
+#' @format A data frame with 18 rows and 10 variables:
+#' \describe{
+#'   \item{CellLine}{Cell line ID}
+#'   \item{Treatment}{Treatment}
+#'   \item{GAPDH}{deltaCt of GAPDH}
+#'   \item{CKAP2L}{deltaCt of CKAP2L}
+#'   \item{ROCK1}{deltaCt of ROCK1}
+#'   \item{TPR}{deltaCt of TPR}
+#'   \item{ALDH4A1}{deltaCt of ALDH4A1}
+#'   \item{GALNS}{deltaCt of GALNS}
+#'   \item{CLCA2}{deltaCt of CLCA2}
+#' }
+#' 
+"qPCR_SF767"
+
+#' Illumina to REFSEQ_MRNA tabel
 #' GEOD.adf <-  fread('Illumina HumanHT-12_V4.0_A-GEOD-13475.adf.txt')
 #' setnames(GEOD.adf,'Reporter Database Entry [genbank]','genbank')
 #' setnames(GEOD.adf,'Reporter Name','illumina_humanht_12_v4')

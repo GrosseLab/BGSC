@@ -1,7 +1,7 @@
 Reproducible script for the publication
 ================
 Weinholdt Claus
-2019-01-29
+2019-04-19
 
 <!--   html_document:
     toc: true
@@ -55,8 +55,10 @@ data(ExpData)
 We use the function *neqc* function from the *limma* package which was developed for normalizing Illumina BeadChips data. The *neqc* function performs background correction using negative control probes followed by quantile normalization using negative and positive control probes. The *Illumina GenomeStudio* calculates and reports a detection p-value, which represents the confidence that a given transcript is expressed above background defined by negative control probes. For further analysis, we used only those probes for which the detection p-values for all six probes was below 0.05.
 
 ``` r
-normData <- normalizeExpData()
+normData <- normalizeExpData(set = 'SF767')
 ```
+
+    ## [1] "Dataset is SF767"
 
     ## genes with detection pval <= 0.05 in 6 of 6 Samples --> 16742 of 47322
 
@@ -166,15 +168,28 @@ After calculating the log2-fold change for group *c* by \[*μ*<sub>*c*1</sub> - 
     MeanFoldChangeClass <- get.log2Mean.and.log2FC(normData = normData) 
     
     ### load qPCR data
-    qCPRdataC <- getQPCR()
+    data(qPCR_SF767, envir = environment()) 
+    qgenes <-  c('CKAP2L','ROCK1','TPR','ALDH4A1','CLCA2','GALNS')
+    comparative_qPCR <- list()
+    qPCR_Mean <- qPCR_log2FC <- data.frame()
+    for(n in qgenes){
+      Ref_GAPDH <- as.double(qPCR_SF767[,'GAPDH'])
+      tmp <-  as.double(qPCR_SF767[,n])
+      comparative_qPCR[[n]] <- comparativeMethod_qPCR.analysis(Gene = tmp,Ref = Ref_GAPDH)
+      comparative_qPCR[[n]]$CellLine <- qPCR_SF767$CellLine
+      comparative_qPCR[[n]]$Treatment <- qPCR_SF767$Treatment
+    } 
+    SF.log2FC <- comparativeMethod_qPCR.RNAi.log2FC(comparative_qPCR)
+    qCPRdataC <- SF.log2FC$ddCT.C1C0
+    data.table::setkey(qCPRdataC,Gene)
     
     ### annotation of gene examples
     IDs.dt <- data.table::data.table(normData$genes,keep.rownames = T,key = 'rn')
     IDs.dt.c <- IDs.dt[rownames(PostClass$resFilter$c),]
     data.table::setkey(IDs.dt.c,'SYMBOL')
     
-    qgenesIDs <- lapply(qCPRdataC$rn, function(qg) as.character(IDs.dt.c[qg,][['rn']]) )
-    names(qgenesIDs) <- qCPRdataC$rn
+    qgenesIDs <- lapply(as.character(qCPRdataC$Gene), function(qg) as.character(IDs.dt.c[qg,][['rn']]) )
+    names(qgenesIDs) <- as.character(qCPRdataC$Gene)
 ```
 
 <!-- 
@@ -212,18 +227,18 @@ Table: Table 1
 
 Gene      ExpID          Set        Mean      stderr  pid                   
 --------  -------------  ----  ---------  ----------  ----------------------
-ALDH4A1   ILMN_1696099   c0     7.608376   0.1628566  ALDH4A1::ILMN_1696099 
-ALDH4A1   ILMN_1696099   c1     6.373942   0.0698691  ALDH4A1::ILMN_1696099 
 CKAP2L    ILMN_1751776   c0     7.786610   0.1647013  CKAP2L::ILMN_1751776  
 CKAP2L    ILMN_1751776   c1     8.997306   0.1075965  CKAP2L::ILMN_1751776  
-CLCA2     ILMN_1803236   c0     7.590288   0.2046290  CLCA2::ILMN_1803236   
-CLCA2     ILMN_1803236   c1     6.341448   0.0676563  CLCA2::ILMN_1803236   
-GALNS     ILMN_1737949   c0     6.848607   0.1113025  GALNS::ILMN_1737949   
-GALNS     ILMN_1737949   c1     5.972909   0.0430090  GALNS::ILMN_1737949   
 ROCK1     ILMN_1808768   c0     5.129696   0.0735355  ROCK1::ILMN_1808768   
 ROCK1     ILMN_1808768   c1     5.910558   0.0494527  ROCK1::ILMN_1808768   
 TPR       ILMN_1730999   c0     7.165260   0.1312655  TPR::ILMN_1730999     
 TPR       ILMN_1730999   c1     8.384344   0.0213682  TPR::ILMN_1730999     
+ALDH4A1   ILMN_1696099   c0     7.608376   0.1628566  ALDH4A1::ILMN_1696099 
+ALDH4A1   ILMN_1696099   c1     6.373942   0.0698691  ALDH4A1::ILMN_1696099 
+CLCA2     ILMN_1803236   c0     7.590288   0.2046290  CLCA2::ILMN_1803236   
+CLCA2     ILMN_1803236   c1     6.341448   0.0676563  CLCA2::ILMN_1803236   
+GALNS     ILMN_1737949   c0     6.848607   0.1113025  GALNS::ILMN_1737949   
+GALNS     ILMN_1737949   c1     5.972909   0.0430090  GALNS::ILMN_1737949   
 -->
 ### <a name="FCplot"></a> Log2 fold changes of Illumina data vs RT-qPCR
 
@@ -262,7 +277,7 @@ We have found that the six log<sub>2</sub>-fold changes of the Illumina microarr
 
     ## R version 3.4.1 (2017-06-30)
     ## Platform: x86_64-apple-darwin15.6.0 (64-bit)
-    ## Running under: macOS  10.14.2
+    ## Running under: macOS  10.14.4
     ## 
     ## Matrix products: default
     ## BLAS: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRblas.0.dylib
@@ -281,18 +296,15 @@ We have found that the six log<sub>2</sub>-fold changes of the Illumina microarr
     ## [7] data.table_1.10.4-3
     ## 
     ## loaded via a namespace (and not attached):
-    ##  [1] Rcpp_0.12.15         highr_0.6            RColorBrewer_1.1-2  
-    ##  [4] compiler_3.4.1       pillar_1.1.0         futile.logger_1.4.3 
-    ##  [7] plyr_1.8.4           futile.options_1.0.0 bitops_1.0-6        
-    ## [10] tools_3.4.1          digest_0.6.15        evaluate_0.10.1     
-    ## [13] tibble_1.4.2         rlang_0.3.1          yaml_2.1.16         
-    ## [16] VennDiagram_1.6.18   stringr_1.2.0        knitr_1.19          
-    ## [19] gtools_3.5.0         caTools_1.17.1       rprojroot_1.3-2     
-    ## [22] plotrix_3.7          rmarkdown_1.8        pheatmap_1.0.8      
-    ## [25] gdata_2.18.0         lambda.r_1.2         magrittr_1.5        
-    ## [28] backports_1.1.2      scales_0.5.0         gplots_3.0.1        
-    ## [31] htmltools_0.3.6      MASS_7.3-48          colorspace_1.3-2    
-    ## [34] labeling_0.3         KernSmooth_2.23-15   stringi_1.1.6       
-    ## [37] lazyeval_0.2.1       munsell_0.4.3
+    ##  [1] Rcpp_0.12.15       knitr_1.19         magrittr_1.5      
+    ##  [4] MASS_7.3-48        munsell_0.4.3      colorspace_1.3-2  
+    ##  [7] rlang_0.3.1        highr_0.6          stringr_1.2.0     
+    ## [10] plyr_1.8.4         tools_3.4.1        plotrix_3.7       
+    ## [13] htmltools_0.3.6    yaml_2.1.16        lazyeval_0.2.1    
+    ## [16] rprojroot_1.3-2    digest_0.6.15      tibble_1.4.2      
+    ## [19] RColorBrewer_1.1-2 rlist_0.4.6.1      evaluate_0.10.1   
+    ## [22] rmarkdown_1.8      labeling_0.3       pheatmap_1.0.8    
+    ## [25] stringi_1.1.6      pillar_1.1.0       compiler_3.4.1    
+    ## [28] scales_0.5.0       backports_1.1.2
 
 <!--  Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot. -->
