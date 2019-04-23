@@ -10,12 +10,14 @@ normalizeExpData(DetectionPval = 0.05 , DetectionPvalNumber = "ALL")
 \item{DetectionPval}{is the dectecion p value ot the Illumina BeatChip}
 
 \item{DetectionPvalNumber}{miniml number of samples with DetectionPval. If DetectionPvalNumber is "ALL" then DetectionPvalNumber equal to the number of samples}
+
+\item{set}{define which data set is used. default is 'SF767'}
 }
 \value{
 a \code{limma object}
 }
 \description{
-.AAA
+normalizing the raw data and filting out low confidential probes
 }
 \author{
 Claus Weinholdt

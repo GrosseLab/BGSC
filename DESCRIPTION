@@ -20,7 +20,8 @@ Imports:
     ggplot2,
     gridExtra,
     grid,
-    RColorBrewer
+    RColorBrewer,
+    rlist
 Suggests: 
     knitr (>= 1.6),
     rmarkdown (>= 0.3.3),

@@ -9,6 +9,6 @@
 ExpData
 }
 \description{
-A dataset containing the EListRaw objekt from limma::read.ilmn(files="Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt", ctrlfiles="ControlProbeProfile_SF767-1-799-6.txt", other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS") )
+A dataset containing the EListRaw objekt from limma::read.ilmn(files="Einzelanalyse_nonorm_nobkgd_SF767-1.txt", ctrlfiles="ControlProbeProfile_SF767-1.txt", other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS") )
 }
 \keyword{datasets}

@@ -4,58 +4,140 @@ main <- function(){
   library(gridExtra)
   library(grid)
   library(gtable)
-  library(BGSC)
+  # library(BGSC)
   
-  ### normalize Data ----------------------------------------------------------------------
-    normData <- normalizeExpData()
+  runPredection <- function(set){
+    ### normalize Data ----------------------------------------------------------------------
+    # normData <- normalizeExpData()
     # normData <- normalizeExpData(DetectionPvalNumber = 1)
-   
-  ### calulate logLik for class  Data ----------------------------------------------------------------------
+    normData <- normalizeExpData(set = set)
+    
+    ### calulate logLik for class  Data ----------------------------------------------------------------------
     Lsets <- get.Lset()
     IndicatorVar <- lapply(Lsets,function(x){
       vec <- rep(0,6);names(vec) <- c(1:6)
       if (!is.null(x$s1)) { vec[x$s1] <- 1 }
       return(vec)
     })
-    pheatmap::pheatmap(t(do.call(rbind, IndicatorVar)),cluster_rows = F,cluster_cols = F)
+    # pheatmap::pheatmap(t(do.call(rbind, IndicatorVar)),cluster_rows = F,cluster_cols = F)
     
     normDataLogLikData <- logLikelihoodOfnormData(normData$E)
     normDataLogLik <- normDataLogLikData[['logL']]
     ALL.MUs  <- normDataLogLikData[['ALL.MUs']]
     ALL.VARs <- normDataLogLikData[['ALL.VARs']]
     
-    TPRid = 'ILMN_1730999'
-    exp(normDataLogLik[TPRid,]) 
-  
+    # TPRid = 'ILMN_1730999'
+    # exp(normDataLogLik[TPRid,]) 
     
-    
-  ### calulate BIC from logLik  ----------------------------------------------------------------------
+    ### calulate BIC from logLik  ----------------------------------------------------------------------
     npar <- sapply(Lsets, function(x) sum(!sapply(x,is.null ) )) + 1  ## number parapeters for LogLilk -> mean + var 
     k <-  sapply(Lsets, function(x) sum( sapply(x,length) ))
     normDataBIC <- get.IC(normDataLogLik , npar, k , IC = 'BIC')
     BICminInd <- apply( normDataBIC,MARGIN = 1, FUN = minIndex)
     print(table(BICminInd))
     
-    normDataBIC[TPRid,]
-    exp(normDataLogLik[TPRid,]) / ( sqrt(6)^npar )
+    # normDataBIC[TPRid,]
+    # exp(normDataLogLik[TPRid,]) / ( sqrt(6)^npar )
     
-  ### calulate Posterior from BIC ----------------------------------------------------------------------
-    normDataPosterior <- get.Posterior( normDataBIC ,Pis = c(0.7,0.1,0.1,0.1))
+    ### calulate Posterior from BIC ----------------------------------------------------------------------
+    # normDataPosterior <- get.Posterior( normDataBIC ,Pis = c(0.7,0.1,0.1,0.1))
+    pis = c(0.7,0.1,0.1,0.1)
+    normDataPosterior <- get.Posterior( normDataBIC ,Pis = pis)
+    
     POSTmaxInd <- apply(normDataPosterior, MARGIN = 1 ,FUN = maxIndex)
     print(table(POSTmaxInd))
     
     PostClass <- get.gene.group(data = normDataPosterior,indexing = "maximal",filter = 0.75, DoPlot = TRUE)
-    normDataPosterior[TPRid,]
     
+    return(list("PostClass" = PostClass,'normData'=normData,'ALL.MUs' = ALL.MUs,'ALL.VARs' = ALL.VARs,'normDataPosterior' = normDataPosterior,'normDataBIC' = normDataBIC))
+  }
+  
+  set <- 'SF767'
+  predSF767 <- runPredection(set)
+  normData <- predSF767$normData
+  ALL.MUs <- predSF767$ALL.MUs
+  ALL.VARs <- predSF767$ALL.VARs
+  normDataBIC <- predSF767$normDataBIC
+  normDataPosterior <- predSF767$normDataPosterior
+  PostClass <- predSF767$PostClass
+  
+  writePostClass <- function(PredectionRes,set){
+    MeanFoldChangeClass <- get.log2Mean.and.log2FC(normData = PredectionRes$normData)
+
+    outRes <- list()
+    for(class in names(PredectionRes$PostClass$res)){
+      tmp <- round(PredectionRes$PostClass$res[[class]],4)
+      colnames(tmp) <- paste0("Posterior_class_",colnames(tmp))
+      tmpkey <- paste0("Posterior_class_",class)
+      OutOrderID <- sort(tmp[,tmpkey],decreasing = T)
+      tmp <- as.data.table(tmp,keep.rownames = T)
+      setkey(tmp,'rn')
+    
+      # tmpMu <- PredectionRes$ALL.MUs
+      # tmpMu <- tmpMu[,colnames(tmpMu)[stringr::str_detect(string = colnames(tmpMu),pattern = class)  ]]
+      # colnames(tmpMu) <- paste0("MeanExp_",colnames(tmpMu))
+      # removeCol <- colnames(tmpMu)[is.nan(tmpMu[1,])]
+      # tmpMu <- as.data.table(tmpMu,keep.rownames = T)
+      # if(length(removeCol)>0){
+      #   for(i in removeCol){
+      #     tmpMu <- tmpMu[, !i, with=FALSE] 
+      #   }
+      # }
+      # setkey(tmpMu,'rn')
+      # tmp <-  merge(tmpMu,tmp,by.x = 'rn',by.y = 'rn')
+      # setkey(tmp,'rn')
+      
+      tmpFC <- MeanFoldChangeClass[[class]]
+      colnames(tmpFC) <- stringr::str_replace_all(colnames(tmpFC),pattern = 's',replacement = class)
+      colnames(tmpFC) <- stringr::str_replace_all(colnames(tmpFC),pattern = 'M',replacement = "Mean")
+      colnames(tmpFC) <- stringr::str_replace_all(colnames(tmpFC),pattern = 'FC',replacement = "log2FC")
+      colnames(tmpFC) <- stringr::str_replace_all(colnames(tmpFC),pattern = paste0(class,'tderr'),replacement = 'stderr')
+      
+      setkey(tmpFC,'rn')
+      tmp <-  merge(tmpFC,tmp,by.x = 'rn',by.y = 'rn')
+      
+      tmpSYMBOL <- as.data.table(PredectionRes$normData$genes[tmp$rn,],keep.rownames = T)
+      setkey(tmpSYMBOL,'rn')
+      tmp <-  merge(tmpSYMBOL[,.(rn,SYMBOL)],tmp,by.x = 'rn',by.y = 'rn')
+      setkey(tmp,'rn')
+      
+      tmp <- tmp[names(OutOrderID),]
+      outRes[[class]] <- tmp
+      
+      colnames(tmp)[1] <- 'ID'
+      # write.csv2(tmp,paste0('./PredectionResult/PredectionResultClass_',class,'.csv') )    
+      write.csv2( format(tmp, digits=3),paste0('./PredectionResult/PredectionResultClass_',class,'.csv') )    
+    }
+    
+    return(outRes)
+  }
+  predSF767outRes <- writePostClass(predSF767,set)
+  
   ### compare to qPCR ----------------------------------------------------------------------
     MeanFoldChangeClass <- get.log2Mean.and.log2FC(normData = normData)
-    qCPRdataC <- getQPCR()
     
+    data(qPCR_SF767, envir = environment()) 
+    qgenes <-  c('CKAP2L','ROCK1','TPR','ALDH4A1','CLCA2','GALNS')
+    comparative_qPCR <- list()
+    qPCR_Mean <- qPCR_log2FC <- data.frame()
+    for(n in qgenes){
+      Ref_GAPDH <- as.double(qPCR_SF767[,'GAPDH'])
+      
+      tmp <-  as.double(qPCR_SF767[,n])
+      comparative_qPCR[[n]] <- comparativeMethod_qPCR.analysis(Gene = tmp,Ref = Ref_GAPDH)
+      comparative_qPCR[[n]]$CellLine <- qPCR_SF767$CellLine
+      comparative_qPCR[[n]]$Treatment <- qPCR_SF767$Treatment
+    } 
+    SF.log2FC <- comparativeMethod_qPCR.RNAi.log2FC(comparative_qPCR)
+    qCPRdataC <- SF.log2FC$ddCT.C1C0
+    data.table::setkey(qCPRdataC,Gene)
+    # qCPRdataC <- getQPCR()
+
     IDs.dt <- data.table::data.table(normData$genes,keep.rownames = T,key = 'rn')
     IDs.dt.c <- IDs.dt[rownames(PostClass$resFilter$c),]
     data.table::setkey(IDs.dt.c,'SYMBOL')
-    qgenesIDs <- lapply(qCPRdataC$rn, function(qg) as.character(IDs.dt.c[qg,][['rn']]) )
-    names(qgenesIDs) <- qCPRdataC$rn
+    qgenesIDs <- lapply(as.character(qCPRdata$Gene), function(qg) as.character(IDs.dt.c[qg,][['rn']]) )
+    names(qgenesIDs) <- as.character(qCPRdata$Gene)
   
     hist(MeanFoldChangeClass$c$s1s0FC,50);abline(v=c(0.5,-.5))
     
@@ -68,8 +150,9 @@ main <- function(){
     
     # print(PlotDataFC)
     
-    rns <- levels(PlotDataFC$Gene)[c(2,5,6,1,3,4)] ; PlotDataFC$Gene <- factor(PlotDataFC$Gene, levels = rns)
-    rns <- levels(PlotDataFC$pid)[c(2,5,6,1,3,4)]  ; PlotDataFC$pid <- factor(PlotDataFC$pid, levels = rns)
+    rns <- qgenes #levels(PlotDataFC$Gene)[c(2,5,6,1,3,4)] ; 
+    PlotDataFC$Gene <- factor(PlotDataFC$Gene, levels = rns)
+    # rns <- levels(PlotDataFC$pid)[c(2,5,6,1,3,4)]  ; PlotDataFC$pid <- factor(PlotDataFC$pid, levels = rns)
     
     # cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(2,10)]
     cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(3,9)]
@@ -89,15 +172,16 @@ main <- function(){
       # theme( aspect.ratio = 9 / 16) + 
       theme(legend.position="bottom") 
     print(PlotFC)        
-    ggsave("/Users/weinhol/GitHub/BGSC/PaperPlot/Microary_qPCR_barplot.pdf",device = 'pdf',width = 10,height = 6)
+    ggsave("./PaperPlot/Microary_qPCR_barplot.pdf",device = 'pdf',width = 10,height = 6)
     
   ### bar Illumina expression ----------------------------------------------------------------------
     PlotDataEXP <- make.plot.data.exp.Ill.qPCR(qCPRdata = qCPRdataC, MeanFoldChangeClass = MeanFoldChangeClass,class="c")
     
     # print(PlotDataEXP)
     
-    rns <- levels(PlotDataEXP$Gene)[c(2,5,6,1,3,4)] ; PlotDataEXP$Gene <- factor(PlotDataEXP$Gene, levels = rns)
-    rns <- levels(PlotDataEXP$pid)[c(2,5,6,1,3,4)]  ; PlotDataEXP$pid <- factor(PlotDataEXP$pid, levels = rns)
+    rns <- qgenes #levels(PlotDataFC$Gene)[c(2,5,6,1,3,4)] ; 
+    PlotDataFC$Gene <- factor(PlotDataFC$Gene, levels = rns)
+    # rns <- levels(PlotDataEXP$pid)[c(2,5,6,1,3,4)]  ; PlotDataEXP$pid <- factor(PlotDataEXP$pid, levels = rns)
     
     cols <-  RColorBrewer::brewer.pal(8,'Paired')[c(6,2)] 
     limits <- aes(ymax = PlotDataEXP$Mean + PlotDataEXP$stderr , ymin=PlotDataEXP$Mean - PlotDataEXP$stderr)
@@ -213,6 +297,58 @@ main <- function(){
       addBorder_gtable(Gene.gtable$GALNS$gtable),
       nrow=2,ncol=3)                  
 
+    
+    
+    
+ 
+  ### bar log2 FC qPCR EGF  ----------------------------------------------------------------------
+    qgenes <-  c('CKAP2L','ROCK1','TPR','ALDH4A1','CLCA2','GALNS')
+    qgenes2 <- qgenes[qgenes!='CLCA2']
+    
+    data(qPCR_SF767_LNZ308, envir = environment()) 
+
+    comparative_qPCR_CL_SFLNZ <- list()
+    for(n in qgenes2){
+      Ref_GAPDH <- as.double(qPCR_SF767_LNZ308[,'GAPDH'])
+      tmp <-  as.double(qPCR_SF767_LNZ308[,n])
+      comparative_qPCR_CL_SFLNZ[['GAPDH']][[n]] <- comparativeMethod_qPCR.analysis(Gene = tmp,Ref = Ref_GAPDH)
+    } 
+    CL2 <- c('SF767','SF767','LNZ308','LNZ308')
+    Treat2 <- c("Co" ,"EGF","Co" ,"EGF")  
+    CL_SFLNZ.log2FC <- comparativeMethod_qPCR.EGF.log2FC(comparative_qPCR_CL_SFLNZ[['GAPDH']],CL = CL2 ,Treat=Treat2,nREP=3)
+    qCPRdataEGF <- CL_SFLNZ.log2FC$ddCT.EGF
+    data.table::setkey(qCPRdataC,Gene)
+    
+    pdata <- data.frame(qCPRdataEGF)
+    pdata$Gene <- as.factor(pdata$Gene)
+    pdata$CellLine <- as.factor(pdata$CellLine)
+    pdata$CellLine <- droplevels(pdata$CellLine)
+    colnames(pdata)[c(7,8)] <- c("log2FC",'stderr')
+    rns <- c('CKAP2L','ROCK1','TPR','ALDH4A1','GALNS'); pdata$Gene <- factor(pdata$Gene, levels = rns)
+    rns <- c("SF767","LNZ308"); pdata$CellLine <- factor(pdata$CellLine, levels = rns)
+    cols <- RColorBrewer::brewer.pal(11,"PRGn")[c(3,9)]
+    SetCor <- cor(pdata$log2FC[c(1,3,5,7,9)],pdata$log2FC[c(2,4,6,8,10)])
+    
+    plotOUT <- '/Volumes/Macintosh HD/Users/weinhol/Promotion/ServerTMP/KapplerWichmann/PLOTS_SF767-1-799-6/'
+    dodge <- position_dodge(width=0.9)
+    base_size <- 20
+    
+    PlotFC <- ggplot(pdata,aes(x=factor(Gene),y=log2FC,fill=factor(CellLine),
+                               ymin= log2FC - stderr, ymax= log2FC + stderr)) + 
+      geom_bar(position="dodge",stat="identity") + 
+      geom_errorbar(position=dodge, width=0.4)  +
+      ylim(c(-2 ,2)) +
+      # labs(x = "", y = "Log2-fold change",title=set) +
+      labs(x = "", y = "Log2-fold change") +
+      scale_fill_manual(values = cols,name="") + 
+      thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
+      theme(legend.position="bottom") 
+    print(PlotFC)    
+    ggsave(plot = PlotFC,filename ="./PaperPlot/qPCR_ddCT_log2FC_SF767_LNZ308_barplot.pdf",device = 'pdf',width = 10,height = 6)
+    
+    
+    
+    
   ### DES   ----------------------------------------------------------------------
 
       GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
@@ -241,13 +377,8 @@ main <- function(){
       
   ### TEST   ----------------------------------------------------------------------
       
-
-  
   ### qPCR
   RawQPCR
-  
-  
-  
   
   ###   enrichment analysis   ----------------------------------------------------------------------
 
@@ -297,8 +428,7 @@ main <- function(){
     }
   }
   
-  for
- do.call(rbind, purrr::map2(ChartReportCategorySigList$KEGG_PATHWAY,names(ChartReportCategorySigList$KEGG_PATHWAY), 
+  do.call(rbind, purrr::map2(ChartReportCategorySigList$KEGG_PATHWAY,names(ChartReportCategorySigList$KEGG_PATHWAY), 
                             function(x,group) {
                                        tmp <- x[,c('Category','Term', 'Count','%','Pvalue','FDR')]; 
                                        if (nrow(tmp) > 1) { tmp <- cbind(tmp,group) } else {tmp$group <- NA}

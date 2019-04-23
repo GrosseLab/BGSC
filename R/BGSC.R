@@ -1,99 +1,23 @@
-# ----------------------------------------------------------------------
-#' @title getQPCR
-#' @description get qPCR
-#' @author Claus Weinholdt
-#' @return a \code{data.table} 
-#' @export
-getQPCR <- function(){   
-  ### load data ---------------------------
-    data(RawQPCRsf, envir = environment()) 
-    qgenes <- c("CKAP2L", "ROCK1", "TPR","ALDH4A1", "CLCA2","GALNS") 
-  
-    # RawQPCRsf <- RawQPCR[RawQPCR$Probe == 'SF',]
-    RawQPCRsf.rep <- list()
-    RawQPCRsf.rep[['rep1']] <- RawQPCRsf[1:6,]
-    RawQPCRsf.rep[['rep2']] <- RawQPCRsf[7:12,]
-    RawQPCRsf.rep[['rep3']] <- RawQPCRsf[13:18,]
-
-  ### parameter ---------------------------
-    c0 <- get.Lset()$c$s0 ; c1 <- get.Lset()$c$s1
-    # with M sample size of c0 and N sample size of c1
-    M <- length(c0) ;N <- length(c1)
-    Nrep <- length(RawQPCRsf.rep)
-    doPlot <- FALSE
-    
-  ### delta Ct ---------------------------  
-    delta.ct <-  lapply(qgenes,function(qg)  do.call(cbind, lapply(RawQPCRsf.rep , function(rep) rep[, colnames(rep)[grepl(qg,toupper(colnames(rep)))][1]  ]   ) ) )
-    names(delta.ct) <- qgenes
-    relative.Werte <-  lapply(qgenes,function(qg)  do.call(cbind, lapply(RawQPCRsf.rep , function(rep) rep[, colnames(rep)[grepl(qg,toupper(colnames(rep)))][2]  ]   ) ) )
-    names(relative.Werte) <- qgenes
-    
-    delta.ct.Mean <- t(do.call(cbind,lapply(delta.ct, function(mat) rowMeans((mat)))))
-    colnames(delta.ct.Mean) <- c(1:6)
-    delta.ct.Mean.logFC <- (rowMeans(delta.ct.Mean[,c1]) - rowMeans(delta.ct.Mean[,c0]) ) * -1 
-  
-  ### relative.Werte ---------------------------    
-    relative.Werte.geoMean <- t(do.call(cbind,lapply(relative.Werte, function(mat) rowMeans(log2(mat)))))
-    colnames(relative.Werte.geoMean) <- c(1:6)
-    relative.Werte.geoMean.C1 <- rowMeans(relative.Werte.geoMean[,c1])
-    relative.Werte.geoMean.C0 <- rowMeans(relative.Werte.geoMean[,c0])
-    relative.Werte.geoMean.C1C0.logFC <- relative.Werte.geoMean.C1 - relative.Werte.geoMean.C0
-  
-    if(doPlot){  
-      barplot(t(cbind(relative.Werte.geoMean.C1C0.logFC,delta.ct.Mean.logFC)) ,beside=T,las=2,legend.text = c("rel",'deltaCt'),ylab = 'log2 fold change')   # qGenes$'GLIPR2' wahrscheinlich mit Fehler bei GLIPR2relative.Werte 
-    }
-    
-  ### pooeld.var ---------------------------
-    relative.Werte.var <- t(do.call(cbind,lapply(relative.Werte, function(mat) apply( log2(mat) ,1, function(vec) var(vec)  ) )))
-    colnames(relative.Werte.var) <- c(1:6)
-    relative.Werte.unvar <- relative.Werte.var * (Nrep - 1 ) # to get  sum_i ( x_i - mean(x) )^2  == `repUnVAR`
-    relative.Werte.pooeld.var.C0 <- rowSums( relative.Werte.unvar[,c0] ) / ( sum( rep( (Nrep - 1), M) ) ) # ( sum_m  `repUnVAR`_m )  \ ( sum_m M-1 )
-    relative.Werte.pooeld.var.C1 <- rowSums( relative.Werte.unvar[,c1] ) / ( sum( rep( (Nrep - 1), N) ) )
-    relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation <- sqrt( (relative.Werte.pooeld.var.C0 / M) + (relative.Werte.pooeld.var.C1 / N) )
-  
-  ### var of all values ---------------------------
-    relative.Werte.var.C0 <- sapply(relative.Werte, function(mat){ rownames(mat) <- c(1:6);  var(as.vector(log2(mat)[c0,]))} )
-    relative.Werte.var.C1 <- sapply(relative.Werte, function(mat){ rownames(mat) <- c(1:6);  var(as.vector(log2(mat)[c1,]))} )
-    relative.Werte.var.C0C1_SatterthwaiteApproximation <- sqrt( (relative.Werte.var.C0 / M) + (relative.Werte.var.C1 / N) )
-
-  ### std.err of means --> same method as for Illumina  ---------------------------
-    s1stderr <- apply(relative.Werte.geoMean[,c1],MARGIN = 1, function(row) plotrix::std.error(row,na.rm = T) )
-    s0stderr <- apply(relative.Werte.geoMean[,c0],MARGIN = 1, function(row) plotrix::std.error(row,na.rm = T) )
-    s0s1stderr = sqrt( s1stderr^2 +  s0stderr^2)
-  
-    if(doPlot){
-      barplot(t(cbind(relative.Werte.var.C0 ,relative.Werte.pooeld.var.C0,s0stderr)) ,beside=T,las=2,legend.text = c("var",'pooled.var','stdErr'),ylab = 'var',main='C0')
-      barplot(t(cbind(relative.Werte.var.C1 ,relative.Werte.pooeld.var.C1,s0stderr)) ,beside=T,las=2,legend.text = c("var",'pooled.var','stdErr'),ylab = 'var',main='C1')
-      barplot(t(cbind(relative.Werte.var.C0C1_SatterthwaiteApproximation , relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation,s0s1stderr)) ,beside=T,las=2,legend.text = c("var",'pooled.var','stdErr'),ylab = 'var',main='C0C1_SatterthwaiteApproximation')
-    }
-  ### return---------------------------
-    qCPRdataC <- data.table("rn"=names(relative.Werte) ,relative.Werte.geoMean.C1,relative.Werte.geoMean.C0,relative.Werte.geoMean.C1C0.logFC,
-                             relative.Werte.pooeld.var.C0,relative.Werte.pooeld.var.C1,relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation,
-                             relative.Werte.var.C0,relative.Werte.var.C1,relative.Werte.var.C0C1_SatterthwaiteApproximation,
-                            s1stderr,s0stderr,s0s1stderr)
-    setkey(qCPRdataC)              
-    return(qCPRdataC)
-  
-  # vec <- c( 2,33,45,12,44,21,442)
-  # sqrt( sum( (vec - mean(vec))^2 ) / (length(vec)-1) )
-  # sd(vec)
-  # sum( (vec - mean(vec))^2 ) 
-  # var(vec) * (length(vec)-1)
-}  
-
 # ---------------------------------------------------------------------- 
 #' @title normalize ExpData
-#' @description .AAA
+#' @description normalizing the raw data and filting out low confidential probes 
 #' @author Claus Weinholdt
 #' @usage normalizeExpData(DetectionPval = 0.05 , DetectionPvalNumber = "ALL")
 #' @aliases normalizeExpData
 #' @param DetectionPval is the dectecion p value ot the Illumina BeatChip
 #' @param DetectionPvalNumber miniml number of samples with DetectionPval. If DetectionPvalNumber is "ALL" then DetectionPvalNumber equal to the number of samples
+#' @param set define which data set is used. default is 'SF767'
 #' @return a \code{limma object} 
 #' @import limma stringr
 #' @export
-normalizeExpData <- function(DetectionPval = 0.05 , DetectionPvalNumber = "ALL"){
-  data(ExpData, envir = environment()) 
+normalizeExpData <- function(DetectionPval = 0.05 , DetectionPvalNumber = "ALL", set = 'SF767'){
+  print(paste0("Dataset is ",set))
+  if (set == 'SF767') {
+    data(ExpData, envir = environment()) 
+  }else{
+    stop("error: set not defined. Have to be definded ", call. = FALSE)
+  }
+  
   pe2 <- limma::propexpr(ExpData);
   dim(pe2) <- c(2,3);
   dimnames(pe2) <- list(CellType=c("Control","EGF"),Donor=c(1,2,3));
@@ -103,7 +27,7 @@ normalizeExpData <- function(DetectionPval = 0.05 , DetectionPvalNumber = "ALL")
 
   qqq <- normexp.fit.detection.p(ExpData, detection.p="Detection")
   
-  y2 <- limma::neqc(ExpData,negctrl = "NEGATIVE",detection.p = ExpData$other$Detection ,robust=TRUE,regular = "regular", offset = 16) ; NORM <- "Limma_BG_QN"     #,robust=TRUE)
+  y2 <- limma::neqc(ExpData,negctrl = "NEGATIVE",detection.p = ExpData$other$Detection ,robust=TRUE,regular = "regular", offset = 16) ; NORM <- "Limma_BG_QN"     #,robust=TRUE) # offset = 16 [default]
   head(y2$E)
   
   if (DetectionPvalNumber == "ALL") {
@@ -129,12 +53,7 @@ normalizeExpData <- function(DetectionPval = 0.05 , DetectionPvalNumber = "ALL")
     sum(stringr::str_count(rownames(y2$E),'ILMN_')), ' of ',
     sum(stringr::str_count(rownames(ExpData$E),'ILMN_'))
   ))
-  
-  
   return(y2)
-  
-
-  
 }
 
 # ----------------------------------------------------------------------
@@ -615,7 +534,7 @@ Density.NV.fit.plot <- function(id, normData, ALL.MUs, ALL.VARs, useGroup = NA, 
 #' @export
 make.plot.data.FC.Ill.qPCR <- function(qCPRdata, qgenesIDs ,MeanFoldChangeClass, class = "c"){
   TMP <- data.frame()
-  for (tmpG in qCPRdata$rn  ) {
+  for (tmpG in names(qgenesIDs)  ) {
     expC <- MeanFoldChangeClass[[class]][qgenesIDs[[tmpG]], ]
     TMPexp <- data.frame( "Gene" = tmpG,
                           "ExpID" = expC$rn,
@@ -625,13 +544,20 @@ make.plot.data.FC.Ill.qPCR <- function(qCPRdata, qgenesIDs ,MeanFoldChangeClass,
                           "stderr" = expC[["s0s1stderr"]]
     )
     
+    # TMPqpc <- data.frame( "Gene" = tmpG,
+    #                       # "Set" = "RT-qPCR",
+    #                       "Set" = "qPCR",
+    #                       "FC" = qCPRdata[tmpG,][["relative.Werte.geoMean.C1C0.logFC"]] ,
+    #                       #"stderr" = qCPRdata[tmpG,][["relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation"]],
+    #                       "stderr" = qCPRdata[tmpG,][["s0s1stderr"]]
+    # )
+    
     TMPqpc <- data.frame( "Gene" = tmpG,
-                          # "Set" = "RT-qPCR",
                           "Set" = "qPCR",
-                          "FC" = qCPRdata[tmpG,][["relative.Werte.geoMean.C1C0.logFC"]] ,
-                          #"stderr" = qCPRdata[tmpG,][["relative.Werte.pooeld.var.C0C1_SatterthwaiteApproximation"]],
-                          "stderr" = qCPRdata[tmpG,][["s0s1stderr"]]
+                          "FC" = qCPRdata[tmpG,][["ddCT.logFC.C1C0"]] ,
+                          "stderr" = qCPRdata[tmpG,][["ddCT.logFC.C1C0.stderr"]]
     )
+    
     
     for (i in 1:nrow(TMPexp)) {
       tmp <- TMPqpc 
@@ -656,7 +582,7 @@ make.plot.data.FC.Ill.qPCR <- function(qCPRdata, qgenesIDs ,MeanFoldChangeClass,
 #' @export
 make.plot.data.exp.Ill.qPCR <- function(qCPRdata,MeanFoldChangeClass, class="c"){
   TMP <- data.frame()
-  for (tmpG in qCPRdata$rn  ) {
+  for (tmpG in as.character(qCPRdata$Gene)  ) {
     expC <- MeanFoldChangeClass[[class]][qgenesIDs[[tmpG]], ]
     TMPexp1 <- data.frame("Gene" = tmpG,
                           "ExpID" = expC$rn,
@@ -668,11 +594,10 @@ make.plot.data.exp.Ill.qPCR <- function(qCPRdata,MeanFoldChangeClass, class="c")
                           'Set' = paste0(class,'0'),
                           "Mean" = expC$s0M ,
                           "stderr" = expC$s0s1stderr)
-    
+
     TMP <-  rbind(TMP,rbind(TMPexp0,TMPexp1) )
     
   }  
-  # TMP <- TMP[ TMP$Gene != 'KIF5C',]
   TMP$pid <- paste0(TMP$Gene,'::',TMP$ExpID)
   TMP$pid <- factor(TMP$pid)
   return(TMP)
@@ -780,8 +705,8 @@ REFSEQ_MRNA_to_Illm <- function(string, asString=FALSE){
 PIS_Study <- function(normDataBIC, qgenesIDs){
   ### 
   PIS <- list("P91"=c(0.91 ,0.03 ,0.03  ,0.03),
-              "P85"=c(0.85 ,0.05 ,0.05  ,0.05),
-              "P70"=c(0.7  ,0.1  ,0.1   ,0.1),
+              "P85"=c(0.85 ,0.05 ,0.05  ,0.05), # close to expression data
+              "P70"=c(0.7  ,0.1  ,0.1   ,0.1),  # used in paper, to be a little bit more liberal 
               "P55"=c(0.55 ,0.15 ,0.15  ,0.15),
               "P40"=c(0.4  ,0.2  ,0.2   ,0.2),
               "P25"=c(0.25 ,0.25 ,0.25  ,0.25)
@@ -829,53 +754,342 @@ PIS_Study <- function(normDataBIC, qgenesIDs){
 # ----------------------------------------------------------------------
 makeExpData <- function() {
   
-  # tmpNoNo <- fread("Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt")
-  # tmpCPP <- fread("ControlProbeProfile_SF767-1-799-6.txt")
-  # tmpNoNo767 <- tmpNoNo[ , names(tmpNoNo)[!stringr::str_detect(names(tmpNoNo),'799')] , with=F]
-  # tmpCPP767 <- tmpCPP[ , names(tmpCPP)[!stringr::str_detect(names(tmpCPP),'799')] , with=F]
-  # write.table(tmpNoNo767,"Einzelanalyse_nonorm_nobkgd_SF767-1.txt",row.names = F,sep="\t",quote = F)
-  # write.table(tmpCPP767,"ControlProbeProfile_SF767-1.txt",row.names = F,sep="\t",quote = F)
   wd2 <- '/Users/weinhol/GitHub/BGSC/'
   x <- limma::read.ilmn(files=paste0(wd2,"Einzelanalyse_nonorm_nobkgd_SF767-1.txt")   ,sep="\t",
                         ctrlfiles=paste0(wd2,"ControlProbeProfile_SF767-1.txt"),
                         other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS")
   )
+  
+  ##### 2. ### 
+  x2 <- x
+  targets <- c()
+  targets$CellType <- c("KO","KO_EGF","ALL","ALL_EGF","14","14_EGF")
+  set <- c(1:6) #SF 767
+  # set<-c(7:12) # x 999
+  x2$E <- x2$E[,set]
+  x2$other$Detection <- x2$other$Detection[,set]
+  x2$other$BEAD_STDERR <- x2$other$BEAD_STDERR[,set]
+  x2$other$Avg_NBEADS <- x2$other$Avg_NBEADS[,set]
+  x2$targets <- targets
+  
+  ExpData <- x2
+  setwd('/Users/weinhol/GitHub/BGSC')
+  devtools::use_data(ExpData,pkg = 'BGSC')
+  
   # wd2 <- "/Volumes/ianvsITZroot/home/adsvy/Kappler/Kappler_Wichmann_Medizin"
   # x <- limma::read.ilmn(files=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt")  ,sep="\t",
   #                       ctrlfiles=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/ControlProbeProfile_SF767-1-799-6.txt"),
   #                       other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS")
   # )
   
-  ##### 2. ### reduce to our 6 samples !!!! 
-  x2<-x
-  targets<-c()
-  targets$CellType=c("KO","KO_EGF","ALL","ALL_EGF","14","14_EGF")
-  set<-c(1:6) #SF 767
-  # set<-c(7:12) # x 999
-  x2$E<-x2$E[,set]
-  x2$other$Detection<-x2$other$Detection[,set]
-  x2$other$BEAD_STDERR<-x2$other$BEAD_STDERR[,set]
-  x2$other$Avg_NBEADS<-x2$other$Avg_NBEADS[,set]
-  x2$targets<-targets
+  wd2 <- '/Users/weinhol/GitHub/BGSC/'
+  x <- limma::read.ilmn(files=paste0(wd2,"Einzelanalyse_nonorm_nobkgd_L799-1.txt")   ,sep="\t",
+                        ctrlfiles=paste0(wd2,"ControlProbeProfile_L799-1.txt"),
+                        other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS")
+  )
+  colnames(x$E) <- paste0("L",colnames(x$E))
+  colnames(x$other$Detection) <- paste0("L",colnames(x$other$Detection))
+  colnames(x$other$BEAD_STDERR) <- paste0("L",colnames(x$other$BEAD_STDERR))
+  colnames(x$other$Avg_NBEADS) <- paste0("L",colnames(x$other$Avg_NBEADS))
   
-  ExpData <- x2
+  ##### 2. ### reduce to our 6 samples !!!! 
+  x2 <- x
+  targets <- c()
+  targets$CellType <- c("KO","KO_EGF","ALL","ALL_EGF","14","14_EGF")
+  set <- c(1:6) #SF 767
+  # set<-c(7:12) # x 999
+  x2$E <- x2$E[,set]
+  x2$other$Detection <- x2$other$Detection[,set]
+  x2$other$BEAD_STDERR <- x2$other$BEAD_STDERR[,set]
+  x2$other$Avg_NBEADS <- x2$other$Avg_NBEADS[,set]
+  x2$targets <- targets
+  
+  ExpData799 <- x2
   setwd('/Users/weinhol/GitHub/BGSC')
-  devtools::use_data(ExpData,pkg = 'BGSC')
+  devtools::use_data(ExpData799,pkg = 'BGSC')
+  
   #data(ercc, envir = environment()) 
 }
 
 # ----------------------------------------------------------------------
 #' @import utils
-makeQPCR <- function(){
-  RawQPCR <- read.csv(system.file("extdata", "RawQPCR.csv", package = "BGSC"),sep = ';')
-  # setwd('/Users/weinhol/GitHub/BGSC')
-  # devtools::use_data(RawQPCR)
+.makeQPCR <- function(){
+  qPCR_SF767_LNZ308 <- read.csv("./rawdata/qPCR_SF767_LNZ308.csv")
+  qPCR_SF767 <- read.csv("./rawdata/qPCR_SF767.csv")
   
-  qgenes<-c("CKAP2L", "ROCK1", "TPR","ALDH4A1", "CLCA2","GALNS") 
-  RawQPCR.paper <- RawQPCR[,c(colnames(RawQPCR)[1:2],as.vector(sapply(qgenes,function(x) colnames(RawQPCR)[grepl(x,toupper(colnames(RawQPCR)))] )))]
-  RawQPCRsf <- RawQPCR.paper[ RawQPCR.paper$Probe == 'SF',]
-  RawQPCR799 <- RawQPCR.paper[ RawQPCR.paper$Probe == '799',]
   setwd('/Users/weinhol/GitHub/BGSC')
-  devtools::use_data(RawQPCRsf)
+  devtools::use_data(qPCR_SF767_LNZ308)
+  devtools::use_data(qPCR_SF767)
   
+}
+
+# ----------------------------------------------------------------------
+#' @title qPCR comparative Method  
+#' @description perform the comparative method for the qPCR analysis 
+#' @author Claus Weinholdt
+#' @param Gene delta CT value of the gene
+#' @param Ref delta CT value of the reference gene
+#' @return a \code{data.frame} with delta-delta CT values
+#' @export
+comparativeMethod_qPCR.analysis <- function(Gene,Ref){
+  Gene <- as.double(Gene)
+  Ref <- as.double(Ref)
+  
+  
+  ddCT <- Gene - Ref #ctGen_minus_ctRef 
+  t0 <- ddCT[1]
+  # print(t0 ==  ddCT[1])
+  # print(ddCT)
+  
+  ddCT_minus_t0 <-  ddCT - t0 #delta ct-t0
+  ddCT_minus_t0_rev <- ddCT_minus_t0 * -1
+  Potenz <- 2^(ddCT_minus_t0_rev)
+  relative_Werte <- 100
+  for(i in 2:length(Gene)){
+    tmp <- (Potenz[i] * relative_Werte[i-1]) / Potenz[i-1]
+    relative_Werte <- c(relative_Werte, tmp)
+  }  
+  
+  comparative  <- data.frame("Ref" = Ref,
+                             "Gene" = Gene,
+                             't0' = t0,
+                             "ddCT" = ddCT,
+                             "ddCT_minus_t0" = ddCT_minus_t0,
+                             "ddCT_minus_t0_rev" = ddCT_minus_t0_rev,
+                             "Power2" = Potenz,
+                             "relative_values" = relative_Werte
+  )
+  return(comparative)
+}
+
+# ----------------------------------------------------------------------
+#' @title log2FC of RNAi for qPCR comparative Method   
+#' @description calculates log2FC for the comparative method for the qPCR analysis based on the RNAi experimental design 
+#' @author Claus Weinholdt
+#' @param comparativeMethod_qPCR generated by function comparativeMethod_qPCR.analysis()
+#' @param Ref delta CT value of the reference gene
+#' @return a \code{data.frame} with log2-fold changes; 'ddCT.C1C0$ddCT.logFC.C1C0' are the log2FC for class c
+#' @export
+comparativeMethod_qPCR.RNAi.log2FC <- function(comparativeMethod_qPCR){
+  
+  c0 <- get.Lset()$c$s0 ; c1 <- get.Lset()$c$s1
+  # with M sample size of c0 and N sample size of c1
+  
+  regulation <- purrr::map2(comparativeMethod_qPCR,names(comparativeMethod_qPCR),function(x,n){
+    #ddCT
+    mat.ddCT <- matrix(x$ddCT,6,3)
+    dimnames(mat.ddCT) <- list(as.character(unique(x$Treatment)) , paste0('rep',1:3))
+    
+    mat.ddCT.mean <- rowMeans(mat.ddCT,na.rm = T)
+    mat.ddCT.mean.stderr <- apply(mat.ddCT,MARGIN = 1, function(row) plotrix::std.error(row,na.rm = T) )
+    
+    ddCTraw <- data.frame("Gene"=n,
+                          'Treatment'=as.character(c(1:6)),
+                          cbind(mat.ddCT,"mean"=mat.ddCT.mean,"stderr"=mat.ddCT.mean.stderr))
+    
+    mat.ddCT.logFC.21 <- ( mat.ddCT.mean[2] - mat.ddCT.mean[1]  ) * -1
+    mat.ddCT.logFC.21.stderr <- sqrt( mat.ddCT.mean.stderr[2]^2 +  mat.ddCT.mean.stderr[1]^2)
+    
+    ddCT.21 <-  data.frame(
+      "Gene"=n,
+      "CellLine"="",
+      "ddCT.mean.1" = mat.ddCT.mean[1],
+      "ddCT.mean.2" = mat.ddCT.mean[2],
+      "ddCT.mean.1.stderr" = mat.ddCT.mean.stderr[1],
+      "ddCT.mean.2.stderr" = mat.ddCT.mean.stderr[2],
+      "ddCT.logFC.21"= mat.ddCT.logFC.21,
+      "ddCT.logFC.21.stderr" = mat.ddCT.logFC.21.stderr
+    )
+    
+    mat.ddCT.mean.C1 <-  mean(mat.ddCT.mean[c1])
+    mat.ddCT.mean.C0 <-  mean(mat.ddCT.mean[c0])
+    mat.ddCT.mean.C1.stderr <- plotrix::std.error(mat.ddCT.mean[c1],na.rm = T) 
+    mat.ddCT.mean.C0.stderr <- plotrix::std.error(mat.ddCT.mean[c0],na.rm = T)  
+    mat.ddCT.logFC.C1C0 <- ( mat.ddCT.mean.C1 - mat.ddCT.mean.C0  ) * -1
+    ## std.err of means --> same method as for Illumina 
+    mat.ddCT.logFC.C1C0.stderr = sqrt( mat.ddCT.mean.C1.stderr^2 +  mat.ddCT.mean.C0.stderr^2)
+    
+    ddCT.C1C0 <- data.frame(
+      "Gene"=n,
+      "CellLine"="",
+      "ddCT.mean.C1" = mat.ddCT.mean.C1,
+      "ddCT.mean.C0" = mat.ddCT.mean.C0,
+      "ddCT.mean.C1.stderr" = mat.ddCT.mean.C1.stderr,
+      "ddCT.mean.C1.stderr" = mat.ddCT.mean.C0.stderr,
+      "ddCT.logFC.C1C0"= mat.ddCT.logFC.C1C0,
+      "ddCT.logFC.C1C0.stderr" = mat.ddCT.logFC.C1C0.stderr
+    )
+    
+    
+    ###relative_values
+    mat.relVal <- matrix(x$relative_values,6,3)
+    dimnames(mat.relVal) <- list(as.character(unique(x$Treatment)) , paste0('rep',1:3))
+    
+    mat.relVal.log2geomean <- rowMeans(log2(mat.relVal),na.rm = T)
+    mat.relVal.log2geomean.stderr <- apply(log2(mat.relVal),MARGIN = 1, function(row) plotrix::std.error(row,na.rm = T) )
+    mat.relVal.mean <- rowMeans(mat.relVal,na.rm = T)
+    mat.relVal.mean.sd<- apply(mat.relVal,MARGIN = 1, function(row) sd(row,na.rm = T) )
+    
+    relValraw <- data.frame("Gene"=n,
+                            'Treatment'=as.character(c(1:6)),
+                            cbind(mat.relVal,"mean"=mat.relVal.mean,"sd"=mat.relVal.mean.sd,"geomean"=mat.relVal.log2geomean,"geomean.stderr"=mat.relVal.log2geomean.stderr))
+    
+    mat.relVal.mean.logFC.21 <- ( log2(mat.relVal.mean[2]) - log2(mat.relVal.mean[1])  )
+    mat.relVal.geomean.logFC.21 <- ( mat.relVal.log2geomean[2] - mat.relVal.log2geomean[1]  ) 
+    mat.relVal.geomean.logFC.21.stderr <- sqrt( mat.relVal.log2geomean.stderr[2]^2 +  mat.relVal.log2geomean.stderr[1]^2)
+    
+    relVal.21 <-  data.frame(
+      "Gene"=n,
+      "CellLine"="",
+      "relVal.mean.1" = mat.relVal.mean[1],
+      "relVal.mean.2" = mat.relVal.mean[2],
+      "relVal.mean.1.sd" = mat.relVal.mean.sd[1],
+      "relVal.mean.2.sd" = mat.relVal.mean.sd[2],
+      "relVal.mean.logFC.21"= mat.relVal.mean.logFC.21,
+      "relVal.mean.logFC.21.stderr" = mat.relVal.geomean.logFC.21.stderr,
+      "relVal.geomean.1" = mat.relVal.log2geomean[1],
+      "relVal.geomean.2" = mat.relVal.log2geomean[2],
+      "relVal.geomean.1.stderr" = mat.relVal.log2geomean.stderr[1],
+      "relVal.geomean.2.stderr" = mat.relVal.log2geomean.stderr[2],
+      "relVal.geomean.logFC.21"= mat.relVal.geomean.logFC.21,
+      "relVal.geomean.logFC.21.stderr" = mat.relVal.geomean.logFC.21.stderr
+    )
+    
+    
+    mat.relVal.geomean.C1 <-  mean(mat.relVal.log2geomean[c1])
+    mat.relVal.geomean.C0 <-  mean(mat.relVal.log2geomean[c0])
+    mat.relVal.geomean.C1.stderr <- plotrix::std.error(mat.relVal.log2geomean[c1],na.rm = T) 
+    mat.relVal.geomean.C0.stderr <- plotrix::std.error(mat.relVal.log2geomean[c0],na.rm = T)  
+    mat.relVal.geomean.logFC.C1C0 <- ( mat.relVal.geomean.C1 - mat.relVal.geomean.C0  )
+    ## std.err of means --> same method as for Illumina 
+    mat.relVal.geomean.logFC.C1C0.stderr = sqrt( mat.relVal.geomean.C1.stderr^2 +  mat.relVal.geomean.C0.stderr^2)
+    
+    relVal.C1C0 <- data.frame(
+      "Gene"=n,
+      "CellLine"="",
+      "relVal.geomean.C1" = mat.relVal.geomean.C1,
+      "relVal.geomean.C0" = mat.relVal.geomean.C0,
+      "relVal.geomean.C1.stderr" = mat.relVal.geomean.C1.stderr,
+      "relVal.geomean.C1.stderr" = mat.relVal.geomean.C0.stderr,
+      "relVal.geomean.logFC.C1C0"= mat.relVal.geomean.logFC.C1C0,
+      "relVal.geomean.logFC.C1C0.stderr" = mat.relVal.geomean.logFC.C1C0.stderr
+    )
+    
+    return(list('ddCTraw'=ddCTraw,'ddCT.21'=ddCT.21,'ddCT.C1C0'=ddCT.C1C0,
+                'relValraw'=relValraw,'relVal.21'=relVal.21,'relVal.C1C0'=relVal.C1C0))
+  })
+  
+  ddCTraw <- data.table(do.call(rbind,lapply(regulation,function(x) x$ddCTraw)))
+  ddCT.C1C0 <- data.table(do.call(rbind,lapply(regulation,function(x) x$ddCT.C1C0)))
+  ddCT.EGF <- data.table(do.call(rbind,lapply(regulation,function(x) x$ddCT.21)))
+  
+  relValraw <- data.table(do.call(rbind,lapply(regulation,function(x) x$relValraw)))
+  relVal.C1C0 <- data.table(do.call(rbind,lapply(regulation,function(x) x$relVal.C1C0)))
+  relVal.EGF <- data.table(do.call(rbind,lapply(regulation,function(x) x$relVal.21)))
+  
+  
+  return(list('ddCT.C1C0'=ddCT.C1C0,'ddCTraw'=ddCTraw,'ddCT.EGF'=ddCT.EGF,
+              'relVal.C1C0'=relVal.C1C0,'relValraw'=relValraw,'relVal.EGF'=relVal.EGF))
+}
+
+# ----------------------------------------------------------------------
+#' @title log2FC of EGF treatment for qPCR comparative Method   
+#' @description calculates log2FC for the comparative method for the qPCR analysis based on the EGF treatment 
+#' @author Claus Weinholdt
+#' @param comparativeMethod_qPCR generated by function comparativeMethod_qPCR.analysis()
+#' @param Ref delta CT value of the reference gene
+#' @return a \code{data.frame} with log2-fold changes; 'ddCT.21$ddCT.logFC.21' are the log2FC for the EGF treatment.
+#' @export
+comparativeMethod_qPCR.EGF.log2FC <- function(comparativeMethod_qPCR,CL,Treat,nREP=4){
+  
+  regulation <- purrr::map2(comparativeMethod_qPCR,names(comparativeMethod_qPCR),function(x,n){
+    #ddCT
+    mat.ddCT <- t(matrix(x$ddCT,nREP,nrow(x)/nREP))
+    dimnames(mat.ddCT) <- list(as.character(paste0(CL,'_',Treat)) , paste0('rep',1:nREP))
+    
+    mat.ddCT.mean <- rowMeans(mat.ddCT,na.rm = T)
+    mat.ddCT.mean.stderr <- apply(mat.ddCT,MARGIN = 1, function(row) plotrix::std.error(row,na.rm = T) )
+    
+    ddCTraw <- data.frame("Gene"=n,
+                          "CellLine"=CL,
+                          'Treatment'=Treat,
+                          cbind(mat.ddCT,"mean"=mat.ddCT.mean,"stderr"=mat.ddCT.mean.stderr))
+    
+    
+    mat.ddCT.logFC.21 <- do.call(rbind,lapply(unique(as.character(CL)),function(x){
+      tmp <- ddCTraw[ddCTraw$CellLine==x,]
+      data.frame(
+        "log2FCmean" = (tmp[tmp$Treatment == 'Co',]$mean - tmp[tmp$Treatment == 'EGF',]$mean),
+        stderr = sqrt( tmp[tmp$Treatment == 'Co',]$stderr^2 +  tmp[tmp$Treatment == 'EGF',]$stderr^2)
+      )
+    } ))
+    mat.ddCT.logFC.21$Gene <-  n
+    mat.ddCT.logFC.21$CellLine <- unique(as.character(CL))
+    
+    ddCT.21 <-  data.frame(
+      "Gene"=n,
+      "CellLine"= unique(CL),
+      "ddCT.mean.1" = ddCTraw[ddCTraw$Treatment == "Co",]$mean,
+      "ddCT.mean.2" = ddCTraw[ddCTraw$Treatment == "EGF",]$mean,
+      "ddCT.mean.1.stderr" = ddCTraw[ddCTraw$Treatment == "Co",]$stderr,
+      "ddCT.mean.2.stderr" = ddCTraw[ddCTraw$Treatment == "EGF",]$stderr,
+      "ddCT.logFC.21"= mat.ddCT.logFC.21$log2FCmean,
+      "ddCT.logFC.21.stderr" = mat.ddCT.logFC.21$stderr
+    )
+    
+    ###relative_values
+    mat.relVal <- t(matrix(x$relative_values,nREP,nrow(x)/nREP))
+    dimnames(mat.relVal) <- list(as.character(paste0(CL,'_',Treat)) , paste0('rep',1:nREP))
+    
+    mat.relVal.log2geomean <- rowMeans(log2(mat.relVal),na.rm = T)
+    mat.relVal.log2geomean.stderr <- apply(log2(mat.relVal),MARGIN = 1, function(row) plotrix::std.error(row,na.rm = T) )
+    mat.relVal.mean <- rowMeans(mat.relVal,na.rm = T)
+    mat.relVal.mean.sd<- apply(mat.relVal,MARGIN = 1, function(row) sd(row,na.rm = T) )
+    
+    relValraw <- data.frame("Gene"=n,
+                            "CellLine"=CL,
+                            'Treatment'=Treat,
+                            cbind(mat.relVal,"mean"=mat.relVal.mean,"sd"=mat.relVal.mean.sd,"geomean"=mat.relVal.log2geomean,"geomean.stderr"=mat.relVal.log2geomean.stderr))
+    
+    
+    mat_log2FC <- do.call(rbind,lapply(unique(as.character(relValraw$CellLine)),function(x){
+      tmp <- relValraw[relValraw$CellLine==x,]
+      data.frame(
+        "log2FCmean" = log2(tmp[tmp$Treatment=='Co',]$mean) - log2(tmp[tmp$Treatment=='EGF',]$mean),
+        "log2FCgeomean" = tmp[tmp$Treatment=='Co',]$geomean - tmp[tmp$Treatment=='EGF',]$geomean,
+        "log2FCgeomean_stderr" = sqrt( tmp[tmp$Treatment=='Co',]$geomean.stderr^2 +  tmp[tmp$Treatment=='EGF',]$geomean.stderr^2)
+      )
+    } ))
+    mat_log2FC$Gene <-  n
+    mat_log2FC$CellLine <- unique(as.character(relValraw$CellLine))
+    
+    relVal.21 <-  data.frame(
+      "Gene"=n,
+      "CellLine"= unique(CL),
+      "relVal.mean.1" = relValraw[relValraw$Treatment == "Co",]$mean,
+      "relVal.mean.2" = relValraw[relValraw$Treatment == "EGF",]$mean,
+      "relVal.mean.1.sd" = relValraw[relValraw$Treatment == "Co",]$sd,
+      "relVal.mean.2.sd" = relValraw[relValraw$Treatment == "EGF",]$sd,
+      "relVal.mean.logFC.21"= mat_log2FC$log2FCmean,
+      "relVal.mean.logFC.21.stderr" = mat_log2FC$log2FCgeomean_stderr,
+      "relVal.geomean.1" = relValraw[relValraw$Treatment == "Co",]$geomean,
+      "relVal.geomean.2" = relValraw[relValraw$Treatment == "EGF",]$geomean,
+      "relVal.geomean.1.stderr" = relValraw[relValraw$Treatment == "Co",]$geomean.stderr,
+      "relVal.geomean.2.stderr" = relValraw[relValraw$Treatment == "EGF",]$geomean.stderr,
+      "relVal.geomean.logFC.21"= mat_log2FC$log2FCgeomean,
+      "relVal.geomean.logFC.21.stderr" = mat_log2FC$log2FCgeomean_stderr
+    )
+    
+    return(list('ddCTraw'=ddCTraw,'ddCT.21'=ddCT.21,
+                'relValraw'=relValraw,'relVal.21'=relVal.21))
+  })
+  
+  ddCTraw <- data.table(do.call(rbind,lapply(regulation,function(x) x$ddCTraw)))
+  ddCT.EGF <- data.table(do.call(rbind,lapply(regulation,function(x) x$ddCT.21)))
+  
+  relValraw <- data.table(do.call(rbind,lapply(regulation,function(x) x$relValraw)))
+  relVal.EGF <- data.table(do.call(rbind,lapply(regulation,function(x) x$relVal.21)))
+  
+  return(list('ddCTraw'=ddCTraw,'ddCT.EGF'=ddCT.EGF,
+              'relValraw'=relValraw,'relVal.EGF'=relVal.EGF))
 }
