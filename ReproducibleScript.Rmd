@@ -209,7 +209,7 @@ After calculating the log2-fold change for group $c$ by [$\mu_{c1}$ - $\mu_{c0}$
       comparative_qPCR[[n]]$Treatment <- qPCR_SF767$Treatment
     } 
     SF.log2FC <- comparativeMethod_qPCR.RNAi.log2FC(comparative_qPCR)
-    qCPRdataC <- SF.log2FC$ddCT.C1C0
+    qCPRdataC <- SF.log2FC$dCT.C1C0
     data.table::setkey(qCPRdataC,Gene)
     
     ### annotation of gene examples
