@@ -127,9 +127,11 @@ main <- function(){
       comparative_qPCR[[n]] <- comparativeMethod_qPCR.analysis(Gene = tmp,Ref = Ref_GAPDH)
       comparative_qPCR[[n]]$CellLine <- qPCR_SF767$CellLine
       comparative_qPCR[[n]]$Treatment <- qPCR_SF767$Treatment
-    } 
+    }
+    
+
     SF.log2FC <- comparativeMethod_qPCR.RNAi.log2FC(comparative_qPCR)
-    qCPRdataC <- SF.log2FC$ddCT.C1C0
+    qCPRdataC <- SF.log2FC$dCT.C1C0
     data.table::setkey(qCPRdataC,Gene)
     # qCPRdataC <- getQPCR()
 
@@ -316,7 +318,7 @@ main <- function(){
     CL2 <- c('SF767','SF767','LNZ308','LNZ308')
     Treat2 <- c("Co" ,"EGF","Co" ,"EGF")  
     CL_SFLNZ.log2FC <- comparativeMethod_qPCR.EGF.log2FC(comparative_qPCR_CL_SFLNZ[['GAPDH']],CL = CL2 ,Treat=Treat2,nREP=3)
-    qCPRdataEGF <- CL_SFLNZ.log2FC$ddCT.EGF
+    qCPRdataEGF <- CL_SFLNZ.log2FC$dCT.EGF
     data.table::setkey(qCPRdataC,Gene)
     
     pdata <- data.frame(qCPRdataEGF)
@@ -344,7 +346,7 @@ main <- function(){
       thememapBarplot(base_size = base_size,legend_key_size = 0.6) + 
       theme(legend.position="bottom") 
     print(PlotFC)    
-    ggsave(plot = PlotFC,filename ="./PaperPlot/qPCR_ddCT_log2FC_SF767_LNZ308_barplot.pdf",device = 'pdf',width = 10,height = 6)
+    ggsave(plot = PlotFC,filename ="./PaperPlot/qPCR_dCT_log2FC_SF767_LNZ308_barplot.pdf",device = 'pdf',width = 10,height = 6)
     
     
     

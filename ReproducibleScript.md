@@ -9,7 +9,7 @@ Weinholdt Claus
   pdf_document:
     toc: true
     highlight: zenburn -->
-Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse **Regulatory targets of alternative isoforms of epidermal growth factor receptor in a glioblastoma cell line**
+Claus Weinholdt, Henri Wichmann, Johanna Kotrba, David H. Ardell, Matthias Kappler, Alexander W. Eckert, Dirk Vordermark and Ivo Grosse **Prediction of regulatory targets of alternative isoforms of the epidermal growth factor receptor in a glioblastoma cell line** BMC Bioinformatics (2019)
 
 Contents
 --------
@@ -76,7 +76,7 @@ We define that:
 
 ### <a name="CalculatingLik"></a> Calculating the log-likelihood for each gene in each group (a, b, c, and d)
 
-Experimental design where the rows present the RNAi treatment -- without RNAi, RNAi with siRNA<sub>*I*</sub>, and RNAi with siRNA<sub>*A**L**L*</sub> -- and the columns present the EGF treatment. The six corresponding logarithmic expression values per gene are denoted by *x*<sub>1</sub>, …, *x*<sub>6</sub>.
+Experimental design where the rows present the RNAi treatment -- without RNAi, RNAi against EGFR splice variant I (siRNA<sub>*I*</sub>), and RNAi against all EGFR splice variants (siRNA<sub>*A**L**L*</sub>) -- and the columns present the EGF treatment. The six corresponding logarithmic expression values per gene are denoted by *x*<sub>1</sub>, …, *x*<sub>6</sub>.
 
 |                                   | no EGF          | EGF             |
 |-----------------------------------|-----------------|-----------------|
@@ -84,7 +84,7 @@ Experimental design where the rows present the RNAi treatment -- without RNAi, R
 | RNAi by siRNA<sub>*I*</sub>       | *x*<sub>3</sub> | *x*<sub>4</sub> |
 | RNAi by siRNA<sub>*A**L**L*</sub> | *x*<sub>5</sub> | *x*<sub>6</sub> |
 
-For group *a* we assume that all six expression levels stem from the same Gaussian distribution. In this case ,the mean *μ* and standard deviation *σ* of this Gaussian distribution (black) is equal to *μ* and *σ* of the six expression levels. For the groups b-d, we assume that all six expression levels stems from a mixture of two Gaussian distributions with independent means *μ*<sub>0</sub> and *μ*<sub>1</sub>, and one pooled standard deviation *σ*. For the groups b-d, we assume that the expression levels \[*x*<sub>1</sub>, *x*<sub>3</sub>, and *x*<sub>5</sub>\], \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, and *x*<sub>5</sub>\], and \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, *x*<sub>5</sub>, and *x*<sub>6</sub>\] stem from the Gaussian distribution based on *μ*<sub>0</sub> (red), respectively. For the groups b-d, we assume that the expression levels \[*x*<sub>2</sub>, *x*<sub>4</sub>, and *x*<sub>6</sub>\], \[*x*<sub>2</sub> and *x*<sub>4</sub>\], and \[*x*<sub>2</sub>\] stem from the Gaussian distribution based on *μ*<sub>1</sub> (blue), respectively.
+For group *a* we assume that all six expression levels stem from the same normal distribution. In this case, the mean *μ* and standard deviation *σ* of this normal distribution (black) is equal to *μ* and *σ* of the six expression levels. For gene groups b-d, we assume that all six expression levels stems from a mixture of two normal distributions with independent means *μ*<sub>0</sub> and *μ*<sub>1</sub>, and one pooled standard deviation *σ*. For gene groups *b* − *d*, we assume that the expression levels \[*x*<sub>1</sub>, *x*<sub>3</sub>, and *x*<sub>5</sub>\], \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, and *x*<sub>5</sub>\], and \[*x*<sub>1</sub>, *x*<sub>3</sub>, *x*<sub>4</sub>, *x*<sub>5</sub>, and *x*<sub>6</sub>\] stem from the normal distribution based on *μ*<sub>0</sub> (red), respectively. For gene groups *b* − *d*, we assume that the expression levels \[*x*<sub>2</sub>, *x*<sub>4</sub>, and *x*<sub>6</sub>\], \[*x*<sub>2</sub> and *x*<sub>4</sub>\], and \[*x*<sub>2</sub>\] stem from the normal distribution based on *μ*<sub>1</sub> (blue), respectively.
 
 ``` r
 Lsets <- get.Lset() #getting a list with the schematic expression pattern
@@ -94,9 +94,9 @@ ALL.MUs  <- normDataLogLikData[['ALL.MUs']] #table with mean for each gene in ea
 ALL.VARs <- normDataLogLikData[['ALL.VARs']] #table with var for each gene in each group 
 ```
 
-#### <a name="ProbabilityDens"></a> Probability density plots of the Gaussian distributions
+#### <a name="ProbabilityDens"></a> Probability density plots of the normal distributions
 
-As an example, we show for each group a gene having the minimum log-likelihood. For the groups *a* − *d*, the examples are ABCB7, ACSL1, TPR, and ADAR, respectively. In each figure, we plot the probability density of the Gaussian distribution for the group *a* as a black curve and mark the six log2-expression values with black circles. For groups *b* − *d*, we plot with red and blue curves the probability densities of the Gaussian distributions and mark the six log2-expression values with circles, which are colored according to classes for class 0 in red and for class 1 in blue.
+As an example, we show for each group a gene having the minimum log-likelihood. For the groups *a* − *d*, the examples are ABCB7, ACSL1, TPR, and ADAR, respectively. In each figure, we plot the probability density of the normal distribution for the group *a* as a black curve and mark the six log2-expression values with black circles. For groups *b* − *d*, we plot with red and blue curves the probability densities of the normal distributions and mark the six log2-expression values with circles, which are colored according to classes for class 0 in red and for class 1 in blue.
 
 ``` r
 GeneExample <- c('ILMN_1687840','ILMN_1684585','ILMN_1730999','ILMN_2320964') 
@@ -180,7 +180,7 @@ After calculating the log2-fold change for group *c* by \[*μ*<sub>*c*1</sub> - 
       comparative_qPCR[[n]]$Treatment <- qPCR_SF767$Treatment
     } 
     SF.log2FC <- comparativeMethod_qPCR.RNAi.log2FC(comparative_qPCR)
-    qCPRdataC <- SF.log2FC$ddCT.C1C0
+    qCPRdataC <- SF.log2FC$dCT.C1C0
     data.table::setkey(qCPRdataC,Gene)
     
     ### annotation of gene examples
@@ -199,13 +199,13 @@ c0 is red and c1 is blue ...
 -->
 #### Expression patterns
 
-We show the normalized expression for the six genes of group c. The normalized expression is shown in a similar way as the `Schematic Expression Pattern`. For three up-regulated genes (CKAP2L, ROCK1, and TPR) the expression is higher for class *c*1 (dark red) and for three down-regulated genes (ALDH4A1, CLCA2, and GALNS) the expression is lower for class *c*1 (light red).
+We show the normalized expression for the six genes of group *c*. The normalized expression is shown in a similar way as the `Schematic Expression Pattern`. For three up-regulated genes (CKAP2L, ROCK1, and TPR) the expression is higher for class *c*1 (dark red) and for three down-regulated genes (ALDH4A1, CLCA2, and GALNS) the expression is lower for class *c*1 (light red).
 
 ![](ReproducibleScript_files/figure-markdown_github/groupC_ExpGenesPlot-1.png)
 
-#### Probability density plots of the Gaussian distributions
+#### Probability density plots of the normal distributions
 
-We show the Probability density distributions of the log2-normalized expression for the six genes of group c. ![](ReproducibleScript_files/figure-markdown_github/DensityQPCR-1.png)
+We show the probability density distributions of the log2-normalized expression for the six genes of group *c*. ![](ReproducibleScript_files/figure-markdown_github/DensityQPCR-1.png)
 
 #### Barplot of Illumina expression data
 
@@ -242,7 +242,7 @@ GALNS     ILMN_1737949   c1     5.972909   0.0430090  GALNS::ILMN_1737949
 -->
 ### <a name="FCplot"></a> Log2 fold changes of Illumina data vs RT-qPCR
 
-We have found that the six log<sub>2</sub>-fold changes of the Illumina microarray expression levels, and those of the qPCR expression levels show a Pearson correlation coefficient of 0.99 (p-value = 0.00002). Therefore, we can suggest that the set of 1,140 genes might contain some further putative target genes of isoforms II-IV of the epidermal growth factor receptor in tumor cells.
+We have found that the six log<sub>2</sub>-fold changes of the Illumina microarray expression levels, and those of the qPCR expression levels show a Pearson correlation coefficient of 0.99 (*p*-value = 0.00002). Therefore, we can suggest that the set of 1,140 genes might contain some further putative target genes of isoforms II-IV of the epidermal growth factor receptor in tumor cells.
 
     ## 
     ##  Pearson's product-moment correlation
@@ -277,7 +277,7 @@ We have found that the six log<sub>2</sub>-fold changes of the Illumina microarr
 
     ## R version 3.4.1 (2017-06-30)
     ## Platform: x86_64-apple-darwin15.6.0 (64-bit)
-    ## Running under: macOS  10.14.4
+    ## Running under: macOS  10.14.5
     ## 
     ## Matrix products: default
     ## BLAS: /Library/Frameworks/R.framework/Versions/3.4/Resources/lib/libRblas.0.dylib
