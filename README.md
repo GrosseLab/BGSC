@@ -1,4 +1,4 @@
-# Bayesian gene selection criterion (BGSC) approach
+# Bayesian Gene Selection Criterion (BGSC) approach
 
 A Package for reproducing the results of the publication:
 
