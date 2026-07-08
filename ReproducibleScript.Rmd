@@ -309,7 +309,7 @@ We show the log2-normalized expression of the group $c$ for the six genes.
 
 ```{r barplotExpData ,echo=FALSE}       
     ### bar Illumina expression ----------------------------------------------------------------------
-      PlotDataEXP <- make.plot.data.exp.Ill.qPCR(qCPRdata = qCPRdataC, MeanFoldChangeClass = MeanFoldChangeClass,class="c")
+      PlotDataEXP <- make.plot.data.exp.Ill.qPCR(qCPRdata = qCPRdataC, qgenesIDs = qgenesIDs, MeanFoldChangeClass = MeanFoldChangeClass,class="c")
       
       # print(PlotDataEXP)
       

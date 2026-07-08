@@ -11,7 +11,8 @@ InformationCriterion(logL, npar, k, IC = "BIC")
 
 \item{npar}{represents the number of parameters in the fitted model}
 
-\item{k}{is number of ovservations}
+\item{k}{is number of observations. Only used by \code{IC = 'BIC'}; \code{IC = 'AIC'}
+always uses the fixed penalty of 2, as in the standard AIC definition.}
 
 \item{IC}{is BIC or AIC}
 }

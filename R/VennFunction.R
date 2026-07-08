@@ -296,7 +296,7 @@ union4<-function(A,B,C,D){
 #' @export
 union5<-function(A,B,C,D,E){
   # O<-union(A,union(B,union(C,union(D,E))))
-  O <- Reduce(intersect,list(A,B,C,D,E))
+  O <- Reduce(union,list(A,B,C,D,E))
   return(O)
 }
 

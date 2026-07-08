@@ -177,7 +177,7 @@ main <- function(){
     ggsave("./PaperPlot/Microary_qPCR_barplot.pdf",device = 'pdf',width = 10,height = 6)
     
   ### bar Illumina expression ----------------------------------------------------------------------
-    PlotDataEXP <- make.plot.data.exp.Ill.qPCR(qCPRdata = qCPRdataC, MeanFoldChangeClass = MeanFoldChangeClass,class="c")
+    PlotDataEXP <- make.plot.data.exp.Ill.qPCR(qCPRdata = qCPRdataC, qgenesIDs = qgenesIDs, MeanFoldChangeClass = MeanFoldChangeClass,class="c")
     
     # print(PlotDataEXP)
     

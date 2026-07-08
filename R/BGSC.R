@@ -21,12 +21,7 @@ normalizeExpData <- function(DetectionPval = 0.05 , DetectionPvalNumber = "ALL",
   pe2 <- limma::propexpr(ExpData);
   dim(pe2) <- c(2,3);
   dimnames(pe2) <- list(CellType=c("Control","EGF"),Donor=c(1,2,3));
-  # print(pe2) ;
-  # print(mean(pe2[1:2,]))
-  # print(ExpData)
 
-  qqq <- normexp.fit.detection.p(ExpData, detection.p="Detection")
-  
   y2 <- limma::neqc(ExpData,negctrl = "NEGATIVE",detection.p = ExpData$other$Detection ,robust=TRUE,regular = "regular", offset = 16) ; NORM <- "Limma_BG_QN"     #,robust=TRUE) # offset = 16 [default]
   head(y2$E)
   
@@ -141,11 +136,7 @@ logLikelihoodOfnormData <- function(x){  # with var-estimator
   colnames( logL ) <- names(Lsets)
   colnames( ALL.MUs ) <-  paste0(rep(names(Lsets),each = 2),c('0','1'))
   colnames( ALL.VARs ) <- names(Lsets)
-  
-  # print(data.table::data.table(logL,keep.rownames = T))
-  # print(data.table::data.table(ALL.MUs,keep.rownames = T))
-  # print(data.table::data.table(ALL.VARs,keep.rownames = T))
-   
+
   return(list("logL" = logL,"ALL.MUs" = ALL.MUs, "ALL.VARs" = ALL.VARs) )
 }
 
@@ -179,41 +170,38 @@ minIndex <- function(x){
 #' @author Claus Weinholdt
 #' @param logL is log liklelihood
 #' @param npar represents the number of parameters in the fitted model
-#' @param k is number of ovservations 
-#' @param IC is BIC or AIC 
-#' @return a \code{value}  
+#' @param k is number of observations. Only used by \code{IC = 'BIC'}; \code{IC = 'AIC'}
+#'   always uses the fixed penalty of 2, as in the standard AIC definition.
+#' @param IC is BIC or AIC
+#' @return a \code{value}
 #' @export
 InformationCriterion <- function(logL,npar,k , IC = 'BIC'){
-  
+
   # x = the observed data;
   # k = the number of data points in x, the number of observations, or equivalently, the sample size;
-  # npar = the number of free parameters to be estimated. 
+  # npar = the number of free parameters to be estimated.
   # p(x|npar) = the probability of the observed data given the number of parameters; or, the likelihood of the parameters
   # given the dataset;
   # logL = log of the maximized value of the likelihood function for the estimated model.
-  
+
   if (length(logL) != length(npar) || length(logL) != length(k)) {
-    print('npar not for each class') 
+    stop("logL, npar and k must all have the same length (one value per class)", call. = FALSE)
+  }
+
+  if (IC == 'AIC') {
+    # AIC == -2*loglikelihood + 2*npar ; the penalty is always 2, independent of the
+    # number of observations (k is accepted for a uniform interface with BIC but unused here)
+    aic <- (-2)*logL + 2*npar
+    return(aic)
+  } else if (IC == 'BIC') {
+    # BIC == -2*loglikelihood + npar*log(k) ; k -> number of observations (6)
+    bic <- (-2)*logL + npar * log(k)
+    #alternative
+    #bic<- (-2)*logL + npar *(log(k)+log(2*pi))
+    return(bic)
   } else {
-    if (IC == 'AIC') {
-      #AIC== -2*loglikelihood + k*npar, npar represents the number of parameters in the fitted model, and k = 2 
-      aic <- (-2)*logL + k*npar
-      return(aic)
-    } else if (IC == 'BIC') {
-      #BIC == AIC(object, ..., k = log(nobs(object)))
-      
-      k <- log(k) # k -> number of ovservations (6)
-      #npar represents the number of parameters
-      
-      bic <- (-2)*logL + npar * k 
-      #alternative
-      #bic<- (-2)*logL + npar *(k+log(2*pi))
-      return(bic)
-    } else {
-      print(c(k,"<2 -- ERROR"))
-    }
-    
-  }  
+    stop("IC must be either 'BIC' or 'AIC'", call. = FALSE)
+  }
 }
 
 # ----------------------------------------------------------------------
@@ -242,21 +230,17 @@ get.IC <- function(L,npar,k,IC = 'BIC'){
 #' @return a \code{matrix} of  Posterior 
 #' @export
 get.Posterior <- function(B, Pis= c(0.7,0.1,0.1,0.1) ) {
-  .qB<-function(B){ return(exp(-B/2)) }
-  P_x_m <- t(log(apply(B,MARGIN=1,FUN = .qB)))
-  
-  .w <- function(B,pis){
-    t <- c()
-    for(i in 1:4){
-      t[i] <- B[i]*pis[i]
-    }
-    return(t/sum(t))
-  }
-  pis=Pis  #c(0.90,0.01,0.08,0.01)
-  P_m_x <- t(apply(exp(P_x_m),MARGIN=1,FUN=.w,Pis   ))
-  
+  ## p(z|x) ~ p(x|z) * pi_z ,  with p(x|z) approx exp(-BIC_z/2)  (Kass & Raftery, 1995)
+  ## Computed in log-space and normalized with the log-sum-exp trick (subtract the
+  ## row-wise maximum before exponentiating) so that genes with very large or very
+  ## small BIC values cannot overflow/underflow exp() before the final normalization.
+  logUnnormPosterior <- sweep(-B/2, MARGIN = 2, STATS = log(Pis), FUN = "+")
+  rowMax <- apply(logUnnormPosterior, 1, max)
+  w <- exp(logUnnormPosterior - rowMax)
+  P_m_x <- w / rowSums(w)
+
   colnames(P_m_x) <- colnames(B)
-  
+
   return(P_m_x)
 }
 
@@ -368,20 +352,11 @@ get.log2Mean.and.log2FC <- function(normData) {
                 
               } )
   
-  ### SatterthwaiteApproximation -> sqrt( (var(x)/M ) + (var(y)/N) ) ; with M sample size of and N sample size of y
-  ### equal to 
-  ### std.error.xy = sqrt( std.error(x)^2 +  std.error(y)^2 )
-  FYI <- FALSE
-  if (FYI) {
-    c0 <- c(1,3,4,5);      c1 <- c(2,6); 
-    xkm <- normData$E[,c0] ; M <- length(c0)
-    ykn <- normData$E[,c1] ; N <- length(c1)
-    #http://www.statisticshowto.com/satterthwaite-approximation/
-    #https://wolfweb.unr.edu/~ldyer/classes/396/PSE.pdf
-    SatterthwaiteApproximation <- sqrt( (apply(xkm,1,var) / M) + (apply(ykn,1,var) / N) )
-    hist( SatterthwaiteApproximation - resOut$c[names(SatterthwaiteApproximation),][['s0s1stderr']],100)
-  }
-  
+  ### Note: 's0s1stderr' above equals the Satterthwaite approximation
+  ### sqrt( var(x)/M + var(y)/N ), since sqrt(std.error(x)^2 + std.error(y)^2)
+  ### == sqrt( var(x)/M + var(y)/N ) by definition of the standard error of the mean.
+  ### See tests/testthat/test-log2FC.R for a regression test of this equivalence.
+
   return(resOut)
   
 }
@@ -576,11 +551,12 @@ make.plot.data.FC.Ill.qPCR <- function(qCPRdata, qgenesIDs ,MeanFoldChangeClass,
 #' @description make.plot.data.exp.Ill.qPCR
 #' @author Claus Weinholdt
 #' @param qCPRdata is data.table with qPCR data
+#' @param qgenesIDs Ids of qCPR genes
 #' @param MeanFoldChangeClass is data.table with Illumina data
-#' @param class for the plots 
-#' @return a \code{data.frame} as plot input 
+#' @param class for the plots
+#' @return a \code{data.frame} as plot input
 #' @export
-make.plot.data.exp.Ill.qPCR <- function(qCPRdata,MeanFoldChangeClass, class="c"){
+make.plot.data.exp.Ill.qPCR <- function(qCPRdata, qgenesIDs, MeanFoldChangeClass, class="c"){
   TMP <- data.frame()
   for (tmpG in as.character(qCPRdata$Gene)  ) {
     expC <- MeanFoldChangeClass[[class]][qgenesIDs[[tmpG]], ]
@@ -752,15 +728,24 @@ PIS_Study <- function(normDataBIC, qgenesIDs){
 }
 
 # ----------------------------------------------------------------------
-makeExpData <- function() {
-  
-  wd2 <- '/Users/weinhol/GitHub/BGSC/'
-  x <- limma::read.ilmn(files=paste0(wd2,"Einzelanalyse_nonorm_nobkgd_SF767-1.txt")   ,sep="\t",
-                        ctrlfiles=paste0(wd2,"ControlProbeProfile_SF767-1.txt"),
+#' @title (internal) regenerate the raw expression data objects
+#' @description One-off developer helper that (re-)builds the \code{ExpData} and
+#'   \code{ExpData799} package data objects from the raw Illumina files under
+#'   \code{rawdata/}. Not part of the analysis pipeline and not exported/called by it;
+#'   kept only for provenance of the shipped \code{.rda} files.
+#' @param pkgDir path to the package root, used both to locate the raw data files
+#'   under \code{rawdata/} and to write the resulting \code{data/*.rda} files.
+#'   Defaults to the current working directory instead of a hardcoded,
+#'   machine-specific path. No \code{setwd()} is performed.
+makeExpData <- function(pkgDir = getwd()) {
+
+  rawDir <- file.path(pkgDir, "rawdata")
+  x <- limma::read.ilmn(files=file.path(rawDir,"Einzelanalyse_nonorm_nobkgd_SF767-1.txt")   ,sep="\t",
+                        ctrlfiles=file.path(rawDir,"ControlProbeProfile_SF767-1.txt"),
                         other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS")
   )
-  
-  ##### 2. ### 
+
+  ##### 2. ###
   x2 <- x
   targets <- c()
   targets$CellType <- c("KO","KO_EGF","ALL","ALL_EGF","14","14_EGF")
@@ -771,28 +756,20 @@ makeExpData <- function() {
   x2$other$BEAD_STDERR <- x2$other$BEAD_STDERR[,set]
   x2$other$Avg_NBEADS <- x2$other$Avg_NBEADS[,set]
   x2$targets <- targets
-  
+
   ExpData <- x2
-  setwd('/Users/weinhol/GitHub/BGSC')
-  devtools::use_data(ExpData,pkg = 'BGSC')
-  
-  # wd2 <- "/Volumes/ianvsITZroot/home/adsvy/Kappler/Kappler_Wichmann_Medizin"
-  # x <- limma::read.ilmn(files=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/Einzelanalyse_nonorm_nobkgd_SF767-1-799-6.txt")  ,sep="\t",
-  #                       ctrlfiles=paste0(wd2,"/KW_120813_1343/Analysen_SF767-1-799-6/ControlProbeProfile_SF767-1-799-6.txt"),
-  #                       other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS")
-  # )
-  
-  wd2 <- '/Users/weinhol/GitHub/BGSC/'
-  x <- limma::read.ilmn(files=paste0(wd2,"Einzelanalyse_nonorm_nobkgd_L799-1.txt")   ,sep="\t",
-                        ctrlfiles=paste0(wd2,"ControlProbeProfile_L799-1.txt"),
+  save(ExpData, file = file.path(pkgDir, "data", "ExpData.rda"), compress = "xz")
+
+  x <- limma::read.ilmn(files=file.path(rawDir,"Einzelanalyse_nonorm_nobkgd_L799-1.txt")   ,sep="\t",
+                        ctrlfiles=file.path(rawDir,"ControlProbeProfile_L799-1.txt"),
                         other.columns=c("Detection","BEAD_STDERR","Avg_NBEADS")
   )
   colnames(x$E) <- paste0("L",colnames(x$E))
   colnames(x$other$Detection) <- paste0("L",colnames(x$other$Detection))
   colnames(x$other$BEAD_STDERR) <- paste0("L",colnames(x$other$BEAD_STDERR))
   colnames(x$other$Avg_NBEADS) <- paste0("L",colnames(x$other$Avg_NBEADS))
-  
-  ##### 2. ### reduce to our 6 samples !!!! 
+
+  ##### 2. ### reduce to our 6 samples !!!!
   x2 <- x
   targets <- c()
   targets$CellType <- c("KO","KO_EGF","ALL","ALL_EGF","14","14_EGF")
@@ -803,24 +780,27 @@ makeExpData <- function() {
   x2$other$BEAD_STDERR <- x2$other$BEAD_STDERR[,set]
   x2$other$Avg_NBEADS <- x2$other$Avg_NBEADS[,set]
   x2$targets <- targets
-  
+
   ExpData799 <- x2
-  setwd('/Users/weinhol/GitHub/BGSC')
-  devtools::use_data(ExpData799,pkg = 'BGSC')
-  
-  #data(ercc, envir = environment()) 
+  save(ExpData799, file = file.path(pkgDir, "data", "ExpData799.rda"), compress = "xz")
 }
 
 # ----------------------------------------------------------------------
+#' @title (internal) regenerate the qPCR data objects
+#' @description One-off developer helper that (re-)builds the \code{qPCR_SF767_LNZ308}
+#'   and \code{qPCR_SF767} package data objects from the raw CSV files under
+#'   \code{rawdata/}. Not part of the analysis pipeline and not exported/called by it.
+#' @param pkgDir path to the package root, used both to locate the raw CSV files
+#'   under \code{rawdata/} and to write the resulting \code{data/*.rda} files.
+#'   Defaults to the current working directory instead of a hardcoded,
+#'   machine-specific path. No \code{setwd()} is performed.
 #' @import utils
-.makeQPCR <- function(){
-  qPCR_SF767_LNZ308 <- read.csv("./rawdata/qPCR_SF767_LNZ308.csv")
-  qPCR_SF767 <- read.csv("./rawdata/qPCR_SF767.csv")
-  
-  setwd('/Users/weinhol/GitHub/BGSC')
-  devtools::use_data(qPCR_SF767_LNZ308)
-  devtools::use_data(qPCR_SF767)
-  
+.makeQPCR <- function(pkgDir = getwd()){
+  qPCR_SF767_LNZ308 <- read.csv(file.path(pkgDir, "rawdata", "qPCR_SF767_LNZ308.csv"))
+  qPCR_SF767 <- read.csv(file.path(pkgDir, "rawdata", "qPCR_SF767.csv"))
+
+  save(qPCR_SF767_LNZ308, file = file.path(pkgDir, "data", "qPCR_SF767_LNZ308.rda"), compress = "xz")
+  save(qPCR_SF767, file = file.path(pkgDir, "data", "qPCR_SF767.rda"), compress = "xz")
 }
 
 # ----------------------------------------------------------------------
@@ -836,11 +816,9 @@ comparativeMethod_qPCR.analysis <- function(Gene,Ref){
   Ref <- as.double(Ref)
   
   
-  dCT <- Gene - Ref #ctGen_minus_ctRef 
+  dCT <- Gene - Ref #ctGen_minus_ctRef
   t0 <- dCT[1]
-  # print(t0 ==  dCT[1])
-  # print(dCT)
-  
+
   dCT_minus_t0 <-  dCT - t0 #delta ct-t0 ==> delta_delta_CT (ddCT)
   
   ### Johanna
@@ -853,7 +831,12 @@ comparativeMethod_qPCR.analysis <- function(Gene,Ref){
   }  
   
   ### Henri
-  ddCTPower2 <- 2^(dCT_minus_t0)
+  ## Fixed sign: relative expression must fall as Ct rises relative to the calibrator
+  ## (2^(-ddCt), matching the standard Livak/Schmittgen convention used above for
+  ## 'Potenz'/'relative_values'). The previous 2^(+ddCt) computed the reciprocal of the
+  ## intended fold-change; unused elsewhere in the package so this did not affect any
+  ## published result, but is corrected here for correctness of the public API.
+  ddCTPower2 <- 2^(-dCT_minus_t0)
   ddCTRelExp <- ddCTPower2 *100
   
   
@@ -924,7 +907,7 @@ comparativeMethod_qPCR.RNAi.log2FC <- function(comparativeMethod_qPCR){
       "dCT.mean.C1" = mat.dCT.mean.C1,
       "dCT.mean.C0" = mat.dCT.mean.C0,
       "dCT.mean.C1.stderr" = mat.dCT.mean.C1.stderr,
-      "dCT.mean.C1.stderr" = mat.dCT.mean.C0.stderr,
+      "dCT.mean.C0.stderr" = mat.dCT.mean.C0.stderr,
       "dCT.logFC.C1C0"= mat.dCT.logFC.C1C0,
       "dCT.logFC.C1C0.stderr" = mat.dCT.logFC.C1C0.stderr
     )
@@ -979,7 +962,7 @@ comparativeMethod_qPCR.RNAi.log2FC <- function(comparativeMethod_qPCR){
       "relVal.geomean.C1" = mat.relVal.geomean.C1,
       "relVal.geomean.C0" = mat.relVal.geomean.C0,
       "relVal.geomean.C1.stderr" = mat.relVal.geomean.C1.stderr,
-      "relVal.geomean.C1.stderr" = mat.relVal.geomean.C0.stderr,
+      "relVal.geomean.C0.stderr" = mat.relVal.geomean.C0.stderr,
       "relVal.geomean.logFC.C1C0"= mat.relVal.geomean.logFC.C1C0,
       "relVal.geomean.logFC.C1C0.stderr" = mat.relVal.geomean.logFC.C1C0.stderr
     )

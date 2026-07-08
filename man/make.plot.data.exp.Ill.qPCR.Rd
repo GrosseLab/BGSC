@@ -4,10 +4,12 @@
 \alias{make.plot.data.exp.Ill.qPCR}
 \title{make.plot.data.exp.Ill.qPCR}
 \usage{
-make.plot.data.exp.Ill.qPCR(qCPRdata, MeanFoldChangeClass, class = "c")
+make.plot.data.exp.Ill.qPCR(qCPRdata, qgenesIDs, MeanFoldChangeClass, class = "c")
 }
 \arguments{
 \item{qCPRdata}{is data.table with qPCR data}
+
+\item{qgenesIDs}{Ids of qCPR genes}
 
 \item{MeanFoldChangeClass}{is data.table with Illumina data}
 
