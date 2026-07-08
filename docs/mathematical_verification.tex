@@ -1,0 +1,589 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\geometry{margin=2.5cm}
+
+\lstdefinelanguage{Rlang}{
+  morekeywords={function,if,else,for,while,return,TRUE,FALSE,NA,NULL},
+  sensitive=true,
+  morecomment=[l]{\#},
+  morestring=[b]",
+  morestring=[b]'
+}
+\lstset{
+  language=Rlang,
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{teal},
+  frame=single,
+  framesep=3pt,
+  backgroundcolor=\color{black!3}
+}
+
+\newtheorem{finding}{Finding}
+
+\title{Mathematische Verifikation der BGSC-Implementierung}
+\author{Code- und Mathe-Review des BGSC R-Pakets\\[2pt]
+\small \url{https://github.com/GrosseLab/BGSC}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Dieses Dokument verifiziert formal die statistischen und mathematischen
+Berechnungen im \texttt{BGSC}-Paket (R-Code zur Reproduktion der Ergebnisse
+von Weinholdt et al., \emph{BMC Bioinformatics} 2019), das ein
+Bayes'sches Klassifikationsmodell zur Identifikation von EGFR-Isoform-regulierten
+Genen implementiert. Geprüft werden: die Gauß'sche Log-Likelihood pro
+Genklasse, die gepoolte Varianzschätzung, das Bayes'sche
+Informationskriterium (BIC/AIC), die Posterior-Approximation aus dem BIC,
+die Fehlerfortpflanzung für log$_2$-Fold-Changes sowie die
+$\Delta\Delta C_t$-Methode der qPCR-Analyse. Für jede Formel wird die
+Implementierung algebraisch gegen die Referenzformel nachgerechnet; Abweichungen
+werden als nummerierte \emph{Findings} mit Codereferenz und Auswirkung auf die
+publizierten Ergebnisse dokumentiert.
+\end{abstract}
+
+\tableofcontents
+
+% =====================================================================
+\section{Modellübersicht}
+\label{sec:model}
+
+Für jedes Gen liegen sechs log$_2$-Expressionswerte $x_1,\dots,x_6$ aus einem
+$2\times3$-faktoriellen Design vor (RNAi-Behandlung $\times$ EGF-Behandlung):
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+ & ohne EGF & mit EGF \\
+\midrule
+ohne RNAi & $x_1$ & $x_2$ \\
+RNAi $\text{siRNA}_I$ & $x_3$ & $x_4$ \\
+RNAi $\text{siRNA}_{ALL}$ & $x_5$ & $x_6$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Vier konkurrierende Modelle $z \in \{a,b,c,d\}$ ordnen die sechs Werte
+verschiedenen Partitionen $(S_0^z, S_1^z)$ zu, wobei innerhalb jeder Partition
+ein gemeinsamer Mittelwert und über beide Partitionen eine gemeinsame Varianz
+angenommen wird:
+
+\begin{align*}
+z=a:\quad & S_0 = \{1,\dots,6\},\ S_1=\emptyset \\
+z=b:\quad & S_0 = \{1,3,5\},\ S_1=\{2,4,6\} \\
+z=c:\quad & S_0 = \{1,3,4,5\},\ S_1=\{2,6\} \\
+z=d:\quad & S_0 = \{1,3,4,5,6\},\ S_1=\{2\}
+\end{align*}
+
+Implementiert in \texttt{get.Lset()} (\texttt{R/BGSC.R}).
+
+% =====================================================================
+\section{Gepoolte Varianzschätzung}
+\label{sec:variance}
+
+Für Modelle mit zwei Gruppen ($z \in \{b,c,d\}$) mit Gruppengrößen
+$n_0=|S_0|,\ n_1=|S_1|$ und Gruppenmitteln $\bar\mu_0,\bar\mu_1$ ist die
+gepoolte (unverzerrte) Varianzschätzung unter der Annahme gemeinsamer Varianz:
+
+\begin{equation}
+\hat\sigma^2_z \;=\; \frac{\displaystyle\sum_{i \in S_0}(x_i-\bar\mu_0)^2
+                     + \sum_{i \in S_1}(x_i-\bar\mu_1)^2}
+                    {(n_0-1)+(n_1-1)}
+\label{eq:pooled-var}
+\end{equation}
+
+mit $(n_0-1)+(n_1-1) = n-2$ Freiheitsgraden ($n=n_0+n_1$). Für Modell $a$
+(eine Gruppe, $n_1=0$) reduziert sich das auf die gewöhnliche
+Stichprobenvarianz mit $n-1$ Freiheitsgraden:
+
+\begin{equation}
+\hat\sigma^2_a \;=\; \frac{1}{n_0-1}\sum_{i \in S_0}(x_i - \bar\mu_0)^2
+\label{eq:single-var}
+\end{equation}
+
+\paragraph{Implementierung} (\texttt{.Lset.get.var}, \texttt{R/BGSC.R}):
+
+\begin{lstlisting}
+.Lset.get.var <- function(d,Lset,LsetMean,LsetN){
+  if (LsetN['s1'] > 0) {
+    tmpvar <- ( sum((d[ Lset[["s0"]]  ] - LsetMean['s0'])^2)
+              + sum((d[ Lset[["s1"]]  ] - LsetMean['s1'])^2))
+              / ((LsetN['s0']-1) + (LsetN['s1']-1))
+  } else {
+    tmpvar <- (sum((d[ Lset[["s0"]]  ] - LsetMean['s0'])^2)) / (LsetN['s0']-1)
+  }
+  return( unname(tmpvar) )
+}
+\end{lstlisting}
+
+\textbf{Ergebnis:} Entspricht exakt Gleichung~\eqref{eq:pooled-var} bzw.
+\eqref{eq:single-var}. $\checkmark$ Korrekt.
+
+\begin{finding}[Methodische Anmerkung, kein Fehler]
+Es wird die \emph{unverzerrte} Varianzschätzung ($n-2$-Nenner) statt der
+Maximum-Likelihood-Schätzung ($n$-Nenner) in die Log-Likelihood
+eingesetzt. Das ist gängige Praxis (analog zum gepoolten $t$-Test), macht die
+berichtete Log-Likelihood aber streng genommen nicht identisch mit dem
+tatsächlichen Maximum der Likelihood-Funktion über $\sigma^2$. Da alle vier
+Modelle konsistent so behandelt werden, bleibt der Modellvergleich über BIC
+unverzerrt.
+\end{finding}
+
+% =====================================================================
+\section{Log-Likelihood}
+\label{sec:loglik}
+
+Für $n$ unabhängige, normalverteilte Beobachtungen $x_i \sim
+\mathcal N(\mu_{g(i)}, \sigma^2)$ mit gruppenabhängigem Mittelwert
+$\mu_{g(i)} \in \{\mu_0,\mu_1\}$ und gemeinsamer Varianz $\sigma^2$ ist die
+Log-Likelihood:
+
+\begin{equation}
+\log L(z) \;=\; -\frac{n}{2}\log(2\pi\sigma_z^2)
+              \;-\; \frac{1}{2\sigma_z^2}\sum_{i=1}^{n}\big(x_i-\mu_{g(i)}\big)^2
+\label{eq:loglik}
+\end{equation}
+
+\paragraph{Implementierung} (\texttt{.Lset.get.logL}, \texttt{R/BGSC.R}):
+
+\begin{lstlisting}
+.Lset.get.logL <- function(d,Lset,LsetMean,LsetN,LsetVar){
+  .NV <- function(d,mu,tau){ return(-0.5*tau*(d-mu)^2) }
+  TAU <- 1/LsetVar
+  if(LsetN['s1']>0){
+    TmplogL <- -1*(sum(LsetN)/2) * log(LsetVar*2*pi) +
+      sum( .NV(d[ Lset[["s0"]] ], LsetMean['s0'], TAU),
+           .NV(d[ Lset[["s1"]] ], LsetMean['s1'], TAU) )
+  } else {
+    TmplogL <- -1*(sum(LsetN)/2) * log(LsetVar*2*pi) +
+      sum( .NV(d[ Lset[["s0"]] ], LsetMean['s0'], TAU) )
+  }
+  return(TmplogL)
+}
+\end{lstlisting}
+
+Mit $\tau = 1/\sigma^2$ (Präzision) gilt
+$\texttt{.NV}(x,\mu,\tau) = -\tfrac12\tau(x-\mu)^2$. Da \texttt{sum(v1, v2)}
+in R alle Elemente beider Vektoren gemeinsam summiert (nicht elementweise),
+berechnet der Code
+
+\begin{equation}
+\log L(z) = -\frac{n}{2}\log(2\pi\sigma_z^2)
+   -\frac{1}{2\sigma_z^2}\Big(\sum_{i\in S_0}(x_i-\mu_0)^2 + \sum_{i\in S_1}(x_i-\mu_1)^2\Big)
+\end{equation}
+
+was Gleichung~\eqref{eq:loglik} entspricht, da
+$\sum_{i\in S_0}(x_i-\mu_0)^2 + \sum_{i\in S_1}(x_i-\mu_1)^2 = \sum_{i=1}^n (x_i-\mu_{g(i)})^2$.
+
+\textbf{Ergebnis:} $\checkmark$ Korrekt, sowohl für den Zwei-Gruppen- als auch
+den Ein-Gruppen-Fall (Modell $a$, $S_1=\emptyset$).
+
+% =====================================================================
+\section{Bayes'sches Informationskriterium (BIC/AIC)}
+\label{sec:bic}
+
+\subsection{Referenzformeln}
+
+\begin{align}
+\text{BIC}(z) &= -2\log L(z) + k_z \log(n) \label{eq:bic}\\
+\text{AIC}(z) &= -2\log L(z) + 2\,k_z \label{eq:aic}
+\end{align}
+
+wobei $k_z$ die Anzahl freier Modellparameter und $n$ die Anzahl
+Beobachtungen ist. Für das vorliegende Modell:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Modell & \# Mittelwerte & \# Varianzen & $k_z$ = npar \\
+\midrule
+$a$ & 1 & 1 & 2 \\
+$b,c,d$ & 2 & 1 & 3 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+mit $n=6$ für alle vier Modelle (\texttt{ReproducibleScript.Rmd}):
+\begin{lstlisting}
+npar <- sapply(Lsets, function(x) sum(!sapply(x,is.null))) + 1
+k    <- sapply(Lsets, function(x) sum(sapply(x,length)))
+normDataBIC <- get.IC(normDataLogLik, npar, k, IC = 'BIC')
+\end{lstlisting}
+
+\subsection{Implementierung (vor der Korrektur)}
+
+\begin{lstlisting}
+InformationCriterion <- function(logL,npar,k , IC = 'BIC'){
+  if (length(logL) != length(npar) || length(logL) != length(k)) {
+    print('npar not for each class')
+  } else {
+    if (IC == 'AIC') {
+      aic <- (-2)*logL + k*npar          # <-- verwendet k statt fixem 2
+      return(aic)
+    } else if (IC == 'BIC') {
+      k <- log(k)
+      bic <- (-2)*logL + npar * k
+      return(bic)
+    } else {
+      print(c(k,"<2 -- ERROR"))
+    }
+  }
+}
+\end{lstlisting}
+
+\begin{finding}[BIC-Zweig korrekt]
+\label{find:bic-ok}
+$\text{BIC} = -2\log L + \text{npar}\cdot\log(k)$ entspricht exakt
+Gleichung~\eqref{eq:bic}. Dies ist der einzige in der Analyse-Pipeline
+tatsächlich verwendete Zweig (\texttt{IC = 'BIC'}). $\checkmark$
+\end{finding}
+
+\begin{finding}[AIC-Zweig fehlerhaft, aber ungenutzt]
+\label{find:aic-bug}
+Der Docstring definiert \texttt{k} als ``Anzahl der Beobachtungen'', der
+AIC-Zweig verwendet dieses \texttt{k} aber als Straf-Multiplikator:
+$\text{AIC} = -2\log L + k \cdot \text{npar}$ statt der Standardformel
+\eqref{eq:aic} mit fixem Multiplikator $2$. Mit dem dokumentierten
+$k=6$ ergäbe das $\text{AIC} = -2\log L + 6\cdot\text{npar}$ statt
+$-2\log L + 2\cdot\text{npar}$ -- ein Faktor-3-Fehler in der Modellstrafe.
+\textbf{Auswirkung:} keine, da \texttt{IC='AIC'} in der gesamten Pipeline
+(\texttt{ReproducibleScript.Rmd}, \texttt{scripts/MAIN.R}) nirgends
+aufgerufen wird -- nur \texttt{IC='BIC'} wird verwendet (Finding
+\ref{find:bic-ok}).
+\end{finding}
+
+\subsection{Korrigierte Implementierung}
+
+\begin{lstlisting}
+InformationCriterion <- function(logL,npar,k , IC = 'BIC'){
+  if (length(logL) != length(npar) || length(logL) != length(k)) {
+    stop("logL, npar and k must all have the same length", call. = FALSE)
+  }
+  if (IC == 'AIC') {
+    aic <- (-2)*logL + 2*npar        # fixe Strafe, unabhaengig von k
+    return(aic)
+  } else if (IC == 'BIC') {
+    bic <- (-2)*logL + npar * log(k) # BIC-Formel unveraendert
+    return(bic)
+  } else {
+    stop("IC must be either 'BIC' or 'AIC'", call. = FALSE)
+  }
+}
+\end{lstlisting}
+
+% =====================================================================
+\section{Posterior-Approximation aus dem BIC}
+\label{sec:posterior}
+
+\subsection{Referenzformel}
+
+Die Schwarz/Kass-Raftery-Approximation (Kass \& Raftery, 1995) nähert die
+marginale Likelihood durch $p(x\mid z) \approx \exp(-\text{BIC}(z)/2)$. Mit
+Priors $\pi_z$ liefert die Bayes-Regel die approximative Posterior:
+
+\begin{equation}
+p(z\mid x) \;\approx\;
+\frac{\exp\!\big(-\text{BIC}(z)/2\big)\,\pi_z}
+     {\displaystyle\sum_{z'}\exp\!\big(-\text{BIC}(z')/2\big)\,\pi_{z'}}
+\label{eq:posterior}
+\end{equation}
+
+Verwendete Priors im Paper: $\pi = (0.7,\,0.1,\,0.1,\,0.1)$ für $(a,b,c,d)$.
+
+\subsection{Implementierung (vor der Korrektur)}
+
+\begin{lstlisting}
+get.Posterior <- function(B, Pis= c(0.7,0.1,0.1,0.1) ) {
+  .qB<-function(B){ return(exp(-B/2)) }
+  P_x_m <- t(log(apply(B,MARGIN=1,FUN = .qB)))       # exp(-B/2) dann log(.)
+  .w <- function(B,pis){
+    t <- c()
+    for(i in 1:4){ t[i] <- B[i]*pis[i] }
+    return(t/sum(t))
+  }
+  P_m_x <- t(apply(exp(P_x_m),MARGIN=1,FUN=.w,Pis))  # dann wieder exp(.)
+  colnames(P_m_x) <- colnames(B)
+  return(P_m_x)
+}
+\end{lstlisting}
+
+Algebraisch gilt $\log(\exp(-B/2)) = -B/2$ und anschließend
+$\exp(-B/2)$ wieder -- ein \emph{Exp$\to$Log$\to$Exp-Rundtrip}, der als
+Identität exakt Gleichung~\eqref{eq:posterior} berechnet
+(\texttt{.w} implementiert die Bayes-Normalisierung korrekt), aber ohne jede
+numerische Stabilisierung.
+
+\begin{finding}[Formel korrekt, numerisch fragil]
+\label{find:posterior-numeric}
+Die \emph{Formel} ist korrekt (Gleichung~\eqref{eq:posterior} nachgerechnet
+und bestätigt). Der Exp$\to$Log$\to$Exp-Rundtrip ist jedoch unnötig und
+riskant: In IEEE-754-double-Arithmetik überläuft $\exp(x)$ für
+$x > \ln(1.7977\times10^{308}) \approx 709.78$. Damit $\exp(-B/2)$
+überläuft, muss $B < -2\cdot709.78 \approx -1419.6$ gelten. Für die
+konkreten BIC-Wertebereiche dieses Microarray-Datensatzes ist das
+unwahrscheinlich, aber nicht durch den Code ausgeschlossen -- bei extrem
+kleiner Varianzschätzung (nahezu identische Replikatwerte) kann
+$\log L \to +\infty$ und damit $\text{BIC}\to-\infty$ streben.
+\end{finding}
+
+\subsection{Korrigierte, numerisch stabile Implementierung}
+
+Mit dem Log-Sum-Exp-Trick (Subtraktion des zeilenweisen Maximums vor der
+Exponentiation) bleibt das Ergebnis identisch, aber numerisch stabil:
+
+\begin{equation}
+p(z\mid x) = \frac{\exp\!\big(\ell_z - \max_{z'}\ell_{z'}\big)}
+                   {\sum_{z''}\exp\!\big(\ell_{z''} - \max_{z'}\ell_{z'}\big)},
+\qquad \ell_z := -\tfrac12\text{BIC}(z) + \log \pi_z
+\label{eq:posterior-stable}
+\end{equation}
+
+\begin{lstlisting}
+get.Posterior <- function(B, Pis= c(0.7,0.1,0.1,0.1) ) {
+  logUnnormPosterior <- sweep(-B/2, MARGIN = 2, STATS = log(Pis), FUN = "+")
+  rowMax <- apply(logUnnormPosterior, 1, max)
+  w <- exp(logUnnormPosterior - rowMax)
+  P_m_x <- w / rowSums(w)
+  colnames(P_m_x) <- colnames(B)
+  return(P_m_x)
+}
+\end{lstlisting}
+
+Da $\ell_z - \max_{z'}\ell_{z'} \le 0$ für alle $z$, kann $\exp(\cdot)$ hier
+nicht mehr überlaufen; Unterlauf zu $0$ ist unproblematisch, da mindestens
+ein Term (das Maximum) exakt $\exp(0)=1$ ergibt.
+
+% =====================================================================
+\section{Fehlerfortpflanzung für log$_2$-Fold-Changes}
+\label{sec:log2fc}
+
+Für zwei unabhängige Stichprobenmittel $\bar x$ (Größe $M$) und $\bar y$
+(Größe $N$) ist der Standardfehler der Differenz:
+
+\begin{equation}
+\text{SE}(\bar x - \bar y) = \sqrt{\text{SE}(\bar x)^2 + \text{SE}(\bar y)^2}
+\label{eq:se-diff}
+\end{equation}
+
+und äquivalent dazu die Satterthwaite-Approximation:
+
+\begin{equation}
+\text{SE}(\bar x - \bar y) = \sqrt{\frac{\operatorname{Var}(x)}{M} + \frac{\operatorname{Var}(y)}{N}}
+\label{eq:satterthwaite}
+\end{equation}
+
+da $\text{SE}(\bar x) = \sqrt{\operatorname{Var}(x)/M}$ per Definition des
+Standardfehlers des Mittelwerts. Beide Formen sind mathematisch identisch:
+
+\begin{equation}
+\sqrt{\text{SE}(\bar x)^2 + \text{SE}(\bar y)^2}
+= \sqrt{\frac{\operatorname{Var}(x)}{M} + \frac{\operatorname{Var}(y)}{N}}
+\end{equation}
+
+\paragraph{Implementierung} (\texttt{get.log2Mean.and.log2FC},
+\texttt{R/BGSC.R}) verwendet konsequent Form~\eqref{eq:se-diff}:
+
+\begin{lstlisting}
+s0s1stderr = sqrt( s1stderr^2 +  s0stderr^2)
+\end{lstlisting}
+
+\textbf{Ergebnis:} $\checkmark$ Korrekt; die Äquivalenz zu
+\eqref{eq:satterthwaite} wurde im Repository als
+\texttt{tests/testthat/test-log2FC.R} in einen regulären Regressionstest
+überführt (vormals ein stets deaktivierter \texttt{FYI}-Debug-Block).
+
+% =====================================================================
+\section{qPCR: $\Delta\Delta C_t$-Methode}
+\label{sec:qpcr}
+
+\subsection{Referenzformel (Livak/Schmittgen-Konvention)}
+
+Mit Ziel-Gen-$C_t$ $C_{t,\text{Gen}}$, Referenzgen-$C_t$ $C_{t,\text{Ref}}$
+und Kalibrator (erste Probe) $t_0$:
+
+\begin{align}
+\Delta C_t &= C_{t,\text{Gen}} - C_{t,\text{Ref}} \\
+\Delta\Delta C_t &= \Delta C_t - \Delta C_t[t_0] \\
+\text{relative Expression} &= 100 \cdot 2^{-\Delta\Delta C_t}
+\label{eq:ddct}
+\end{align}
+
+Ein \emph{höherer} $C_t$ bedeutet \emph{weniger} Ausgangsmaterial (mehr
+Zyklen nötig), also muss die relative Expression mit steigendem
+$\Delta\Delta C_t$ \emph{fallen} -- daher das negative Vorzeichen im
+Exponenten von Gleichung~\eqref{eq:ddct}.
+
+\subsection{Implementierung (vor der Korrektur)}
+
+Die Funktion \texttt{comparativeMethod\_qPCR.analysis()} berechnet die
+relative Expression auf zwei unabhängigen Wegen (Code-Kommentare
+``Johanna'' und ``Henri''):
+
+\begin{lstlisting}
+### Johanna
+dCT_minus_t0_rev <- dCT_minus_t0 * -1
+Potenz <- 2^(dCT_minus_t0_rev)              # = 2^(-ddCt)  [korrekt]
+relative_Werte <- 100
+for(i in 2:length(Gene)){
+  tmp <- (Potenz[i] * relative_Werte[i-1]) / Potenz[i-1]
+  relative_Werte <- c(relative_Werte, tmp)
+}
+
+### Henri
+ddCTPower2 <- 2^(dCT_minus_t0)              # = 2^(+ddCt)  [FALSCH]
+ddCTRelExp <- ddCTPower2 * 100
+\end{lstlisting}
+
+\paragraph{Verifikation der ``Johanna''-Rekursion.} Per Induktion:
+$\texttt{relative\_Werte}[1] = 100$, und für $i\ge2$
+
+\begin{equation}
+\texttt{relative\_Werte}[i] = \text{Potenz}[i]\cdot\frac{\texttt{relative\_Werte}[i-1]}{\text{Potenz}[i-1]}
+\;\Longrightarrow\;
+\frac{\texttt{relative\_Werte}[i]}{\text{Potenz}[i]} = \frac{\texttt{relative\_Werte}[i-1]}{\text{Potenz}[i-1]} = \dots = \frac{100}{\text{Potenz}[1]} = 100
+\end{equation}
+
+da $\text{Potenz}[1] = 2^{0} = 1$. Also
+$\texttt{relative\_Werte}[i] = 100\cdot\text{Potenz}[i] = 100\cdot 2^{-\Delta\Delta C_t}$
+-- identisch zu Gleichung~\eqref{eq:ddct}, nur unnötig umständlich als
+Rekursion statt als direkte Formel geschrieben.
+
+\begin{finding}[Vorzeichenfehler im ``Henri''-Zweig]
+\label{find:henri-bug}
+$\texttt{ddCTPower2} = 2^{+\Delta\Delta C_t}$ ist der \emph{Kehrwert} der
+korrekten relativen Expression \eqref{eq:ddct}.
+
+\paragraph{Numerisches Gegenbeispiel.} Referenz-$C_t=20$ (konstant),
+Gen-$C_t$: Kalibrator $25$, Probe $23$ (niedrigerer $C_t$ = mehr Startmaterial
+= höhere Expression):
+\begin{align*}
+\Delta C_t[\text{Kalibrator}] &= 25-20=5, \quad \Delta C_t[\text{Probe}] = 23-20=3\\
+\Delta\Delta C_t[\text{Probe}] &= 3-5 = -2\\
+\text{Standard (korrekt):}\quad & 2^{-(-2)} = 2^{2} = 4 \quad\text{(4-fach h\"ohere Expression)}\\
+\text{``Henri'' (vor Fix):}\quad & 2^{(-2)} = 0.25 \quad\text{(f\"alschlich 4-fach \emph{niedrigere} Expression)}
+\end{align*}
+\textbf{Auswirkung:} Die Spalten \texttt{ddCTPower2}/\texttt{ddCTRelExp}
+werden nirgends im Paket weiterverwendet
+(\texttt{comparativeMethod\_qPCR.RNAi.log2FC} und
+\texttt{comparativeMethod\_qPCR.EGF.log2FC} verwenden ausschließlich
+\texttt{x\$dCT} und \texttt{x\$relative\_values}) -- totes Datenfeld, kein
+Effekt auf publizierte Ergebnisse.
+\end{finding}
+
+\subsection{Korrigierte Implementierung}
+
+\begin{lstlisting}
+### Henri (korrigiert)
+ddCTPower2 <- 2^(-dCT_minus_t0)             # = 2^(-ddCt), konsistent mit 'Potenz'
+ddCTRelExp <- ddCTPower2 * 100
+\end{lstlisting}
+
+Nach der Korrektur gilt exakt $\texttt{ddCTPower2} \equiv \text{Potenz}$ und
+$\texttt{ddCTRelExp} \equiv \texttt{relative\_Werte}$ -- die beiden
+unabhängigen Herleitungen stimmen überein, wie ursprünglich offenbar
+beabsichtigt (Kreuzvalidierung zweier Autoren).
+
+\subsection{Fehlerfortpflanzung im aktiv genutzten Pfad}
+
+In \texttt{comparativeMethod\_qPCR.RNAi.log2FC()} wird der log$_2$FC direkt
+aus den $\Delta C_t$-Mittelwerten berechnet, mit explizitem
+Vorzeichenwechsel:
+
+\begin{equation}
+\log_2\text{FC}_{C1,C0} = -\big(\overline{\Delta C_t}_{C1} - \overline{\Delta C_t}_{C0}\big),
+\qquad
+\text{SE}(\log_2\text{FC}) = \sqrt{\text{SE}(\overline{\Delta C_t}_{C1})^2 + \text{SE}(\overline{\Delta C_t}_{C0})^2}
+\end{equation}
+
+\begin{lstlisting}
+mat.dCT.logFC.C1C0 <- ( mat.dCT.mean.C1 - mat.dCT.mean.C0 ) * -1
+mat.dCT.logFC.C1C0.stderr = sqrt( mat.dCT.mean.C1.stderr^2 + mat.dCT.mean.C0.stderr^2)
+\end{lstlisting}
+
+\textbf{Ergebnis:} $\checkmark$ Korrekt -- äquivalent zu
+Gleichung~\eqref{eq:se-diff}, mit korrektem Vorzeichenwechsel wie in
+Gleichung~\eqref{eq:ddct} gefordert.
+
+\begin{finding}[Doppelt vergebener Spaltenname, kein Berechnungsfehler]
+\label{find:dupcol}
+Die Ergebnis-\texttt{data.frame}s \texttt{dCT.C1C0} und
+\texttt{relVal.C1C0} vergaben denselben Spaltennamen zweimal:
+
+\begin{lstlisting}
+"dCT.mean.C1.stderr" = mat.dCT.mean.C1.stderr,
+"dCT.mean.C1.stderr" = mat.dCT.mean.C0.stderr,   # sollte C0 heissen
+\end{lstlisting}
+
+R benennt die zweite Spalte automatisch mit Suffix \texttt{.1} um (kein
+Fehler, aber irreführend). Die tatsächlich berichtete Größe
+\texttt{dCT.logFC.C1C0.stderr} wird bereits vorher aus den korrekten lokalen
+Variablen berechnet -- \textbf{kein Effekt} auf publizierte Zahlen. Nach dem
+Fix heißt die Spalte korrekt \texttt{dCT.mean.C0.stderr}
+(analog \texttt{relVal.geomean.C0.stderr}).
+\end{finding}
+
+% =====================================================================
+\section{Zusätzlich entdeckter Fehler: \texttt{union5()}}
+\label{sec:union5}
+
+Beim Umsetzen der obigen Fixes wurde ein weiterer, in den ursprünglichen
+Analysen nicht erwähnter Copy-Paste-Fehler gefunden
+(\texttt{R/VennFunction.R}):
+
+\begin{lstlisting}
+union5<-function(A,B,C,D,E){
+  O <- Reduce(intersect,list(A,B,C,D,E))    # sollte Reduce(union, ...) sein
+  return(O)
+}
+\end{lstlisting}
+
+Die Funktion berechnet
+$\bigcap_{i=1}^{5} X_i$ statt der Referenzformel
+$\bigcup_{i=1}^{5} X_i$, obwohl Name, Dokumentation und der auskommentierte
+Code direkt darüber die Vereinigung beschreiben. Kein bekannter Aufrufer im
+Paket (exportierte, aber ungenutzte Funktion) -- dennoch korrigiert.
+
+% =====================================================================
+\section{Zusammenfassung der Findings}
+
+\begin{center}
+\begin{tabular}{@{}clcc@{}}
+\toprule
+\# & Fundstelle & Formel korrekt? & Effekt auf publizierte Ergebnisse \\
+\midrule
+\ref{find:bic-ok} & BIC (\S\ref{sec:bic}) & \checkmark & -- \\
+\ref{find:aic-bug} & AIC (\S\ref{sec:bic}) & $\times$ (vor Fix) & keiner (ungenutzt) \\
+\ref{find:posterior-numeric} & Posterior (\S\ref{sec:posterior}) & \checkmark, numerisch fragil & keiner (Wertebereich unkritisch) \\
+\ref{find:henri-bug} & qPCR ``Henri'' (\S\ref{sec:qpcr}) & $\times$ (vor Fix) & keiner (toter Code) \\
+\ref{find:dupcol} & qPCR Spaltennamen (\S\ref{sec:qpcr}) & \checkmark (Formel), Label falsch & keiner \\
+-- & \texttt{union5()} (\S\ref{sec:union5}) & $\times$ (vor Fix) & keiner (ungenutzt) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Fazit:} Der für die Publikation tatsächlich verwendete
+Berechnungspfad (Log-Likelihood $\to$ BIC $\to$ Posterior-Klassifikation;
+log$_2$FC $\pm$ Standardfehler für Microarray und qPCR) war mathematisch
+korrekt und intern konsistent implementiert. Alle gefundenen Abweichungen
+lagen in ungenutztem Code, Diagnose-Nebenspalten oder in
+Robustheits-/Stilfragen -- sie wurden dennoch behoben, siehe
+\texttt{CODE\_REVIEW.md} und \texttt{NEWS.md} im Repository für den
+vollständigen Implementierungs-Änderungsverlauf und die zugehörigen
+Regressionstests in \texttt{tests/testthat/}.
+
+\end{document}
